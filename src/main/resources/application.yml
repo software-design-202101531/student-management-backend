@@ -23,3 +23,9 @@ spring:
     redis:
       host: localhost
       port: 6380
+
+# JWT 커스텀 설정
+jwt:
+  secret: ${JWT_SECRET}
+  access_expiration_time: ${JWT_ACCESS_EXPIRATION}
+  refresh_expiration_time: ${JWT_REFRESH_EXPIRATION}

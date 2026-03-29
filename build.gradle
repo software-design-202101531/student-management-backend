@@ -41,6 +41,12 @@ dependencies {
     // 스웨거로 인한 commons-lang3를 해결하기
     // [보안 패치] CVE-2025-48924 해결을 위해 commons-lang3 버전을 강제로 최신으로 끌어올림
     implementation 'org.apache.commons:commons-lang3:3.20.0'
+
+
+    // jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
 }
 
 tasks.named('test') {
