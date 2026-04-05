@@ -24,7 +24,7 @@ public class AuthController {
         TokenResponse tokenResponse = authService.login(loginRequest);
 
         // Refresh Token은 HttpOnly 쿠키
-        ResponseCookie refreshTokenCookie = ResponseCookie.from("fefreshToken", tokenResponse.getRefreshToken())
+        ResponseCookie refreshTokenCookie = ResponseCookie.from("refreshToken", tokenResponse.getRefreshToken())
                 .maxAge(14 * 24 * 60 * 60)
                 .path("/")
                 .secure(false)

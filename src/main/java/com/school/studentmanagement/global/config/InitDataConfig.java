@@ -1,3 +1,6 @@
+// 📍 추천 위치: src/main/java/com/school/studentmanagement/global/config/InitDataConfig.java
+// 💡 추천 이유: 프로젝트 구동 시 기초 데이터를 세팅하는 환경 설정 파일이므로 global/config 하위가 적절해유.
+
 package com.school.studentmanagement.global.config;
 
 import com.school.studentmanagement.affiliation.entity.StudentAffiliation;
@@ -12,7 +15,7 @@ import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.password.PasswordEncoder; // ✨ 암호화용 추가
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
 @Configuration
@@ -20,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class InitDataConfig implements CommandLineRunner {
 
     private final EntityManager em;
-    // 실무 포인트: 관리자 비밀번호는 꼭 암호화해서 넣어야 혀요!
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -28,78 +30,94 @@ public class InitDataConfig implements CommandLineRunner {
     public void run(String... args) throws Exception {
 
         // ==========================================
-        // ✨ 0. 최고 관리자(Super Admin) 계정 생성
+        // 0. 최고 관리자 계정 생성 (방어 로직 포함)
         // ==========================================
-        // 실무 포인트: 서버 껐다 켤 때마다 중복 생성되지 않도록 카운트 조회 방어 로직!
         Long adminCount = em.createQuery("SELECT count(u) FROM User u WHERE u.role = :role", Long.class)
-                .setParameter("role", UserRole.ADMIN) // UserRole enum에 SUPER_ADMIN이 있다고 가정해유
+                .setParameter("role", UserRole.ADMIN)
                 .getSingleResult();
 
         if (adminCount == 0) {
             User adminUser = User.builder()
                     .name("최고관리자")
                     .loginId("admin")
-                    .password(passwordEncoder.encode("admin1234!")) // 현업에선 무조건 암호화 필수당께요!
+                    .password(passwordEncoder.encode("admin1234!"))
                     .role(UserRole.ADMIN)
-                    .status(UserStatus.ACTIVE) // 관리자는 바로 활성 상태로
+                    .status(UserStatus.ACTIVE)
                     .build();
             em.persist(adminUser);
             System.out.println("🍠 [춘식이 알림] 최고 관리자 계정(admin1234!) 뚝딱 맹글었슈!");
-        } else {
-            System.out.println("🍠 [춘식이 알림] 최고 관리자 계정이 이미 있어서 걍 넘어갑니더.");
         }
 
         // ==========================================
-        // 1. 학급 생성 (2026년 1학년 1반)
+        // 1. 학급 생성 (2026년 1학년 1반, 2반, 3반)
         // ==========================================
-        Classroom classroom = Classroom.builder()
-                .academicYear(2026)
-                .semester(1)
-                .grade(1)
-                .classNum(1)
-                .build();
-        em.persist(classroom);
+        Long classCount = em.createQuery("SELECT count(c) FROM Classroom c WHERE c.academicYear = 2026 AND c.grade = 1", Long.class)
+                .getSingleResult();
 
-        // ==========================================
-        // 2. 공통 User 생성 (홍길동, 대기 상태)
-        // ==========================================
-        User user = User.builder()
-                .name("홍길동")
-                .password("dummy_password") // 아직 미가입 상태라 더미 비밀번호
-                .role(UserRole.STUDENT)
-                .status(UserStatus.PENDING)
-                .build();
-        em.persist(user);
+        if (classCount == 0) {
+            // 1학년 1반 생성
+            Classroom class1 = Classroom.builder()
+                    .academicYear(2026)
+                    .semester(1)
+                    .grade(1)
+                    .classNum(1)
+                    .build();
+            em.persist(class1);
 
-        // ==========================================
-        // 3. Student 상세 생성 (입학년도 2026)
-        // ==========================================
-        Student student = Student.builder()
-                .user(user)
-                .enrollmentYear(2026)
-                .build();
-        em.persist(student);
+            // 1학년 2반 생성
+            Classroom class2 = Classroom.builder()
+                    .academicYear(2026)
+                    .semester(1)
+                    .grade(1)
+                    .classNum(2)
+                    .build();
+            em.persist(class2);
 
-        // ==========================================
-        // 4. 소속 이력 매핑 (15번)
-        // ==========================================
-        StudentAffiliation affiliation = StudentAffiliation.builder()
-                .student(student)
-                .classroom(classroom)
-                .studentNum(15)
-                .build();
-        em.persist(affiliation);
+            // ✨ 1학년 3반 생성 (홍길동 전학용)
+            Classroom class3 = Classroom.builder()
+                    .academicYear(2026)
+                    .semester(1)
+                    .grade(1)
+                    .classNum(3)
+                    .build();
+            em.persist(class3);
 
-        // ==========================================
-        // 5. ✨ 학부모 가입 대기용 초대장(ParentInvitation) 생성
-        // ==========================================
-        ParentInvitation invitation = ParentInvitation.builder()
-                .student(student)
-                .phoneNumber("010-1234-5678")
-                .relationType(RelationType.FATHER)
-                .build();
-        em.persist(invitation);
+            System.out.println("🍠 [춘식이 알림] 2026학년도 1학년 1반, 2반, 3반 기초 데이터 세팅 완료했슈!");
 
-        System.out.println("🍠 [춘식이 알림] 1학년 1반 15번 홍길동 데이터 및 학부모(010-1234-5678) 초대장 삽입 완벽하게 성공했습니더!");
+            // ==========================================
+            // 2. 초기 테스트용 더미 학생 및 소속/초대장 생성 (3반 소속으로)
+            // ==========================================
+            User user = User.builder()
+                    .name("홍길동")
+                    .role(UserRole.STUDENT)
+                    .status(UserStatus.PENDING)
+                    .build();
+            em.persist(user);
+
+            Student student = Student.builder()
+                    .user(user)
+                    .enrollmentYear(2026)
+                    .build();
+            em.persist(student);
+
+            // ✨ 소속을 3반(class3)으로 매핑
+            StudentAffiliation affiliation = StudentAffiliation.builder()
+                    .student(student)
+                    .classroom(class3)
+                    .studentNum(15)
+                    .build();
+            em.persist(affiliation);
+
+            ParentInvitation invitation = ParentInvitation.builder()
+                    .student(student)
+                    .phoneNumber("010-1234-5678".replaceAll("-", ""))
+                    .relationType(RelationType.FATHER)
+                    .build();
+            em.persist(invitation);
+
+            System.out.println("🍠 [춘식이 알림] 1학년 3반 15번 홍길동 데이터 및 초대장까지 싹 다 넣었슈!");
+        } else {
+            System.out.println("🍠 [춘식이 알림] 1학년 반 데이터가 이미 있어서 스킵합니더.");
+        }
     }
 }
