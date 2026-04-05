@@ -1,6 +1,7 @@
 package com.school.studentmanagement.user.entity;
 
 
+import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.global.enums.UserRole;
 import com.school.studentmanagement.global.enums.UserStatus;
 import jakarta.persistence.*;
@@ -31,6 +32,10 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
+    private Gender gender;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
     private UserRole role;
 
     @Enumerated(EnumType.STRING)
@@ -48,12 +53,13 @@ public class User {
     }
 
     @Builder
-    private User(Long id, String loginId, String password, String name, UserRole role, UserStatus status) {
+    private User(Long id, String loginId, String password, String name, Gender gender, UserRole role, UserStatus status) {
         this.id = id;
         this.loginId = loginId;
         this.password = password;
         this.name = name;
         this.role = role;
+        this.gender = gender;
         this.status = status;
         this.createdAt = LocalDateTime.now();
     }

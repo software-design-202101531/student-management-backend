@@ -2,6 +2,7 @@ package com.school.studentmanagement.user.service;
 
 import com.school.studentmanagement.affiliation.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.entity.Classroom;
+import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.global.enums.RelationType;
 import com.school.studentmanagement.global.enums.UserRole;
 import com.school.studentmanagement.global.enums.UserStatus;
@@ -58,9 +59,10 @@ public class ExcelUploadService {
                             .grade(Integer.parseInt(getCellValue(row.getCell(1))))
                             .classNum(Integer.parseInt(getCellValue(row.getCell(2))))
                             .studentNum(Integer.parseInt(getCellValue(row.getCell(3))))
-                            .studentName(getCellValue(row.getCell(4)))
-                            .fatherPhone(getCellValue(row.getCell(5)))
-                            .motherPhone(getCellValue(row.getCell(6)))
+                            .gender(parseGender(getCellValue(row.getCell(4))))
+                            .studentName(getCellValue(row.getCell(5)))
+                            .fatherPhone(getCellValue(row.getCell(6)))
+                            .motherPhone(getCellValue(row.getCell(7)))
                             .build());
                 } catch (Exception e) {
                     log.error("엑셀 파싱 에러 - Row: {}", i + 1, e);
@@ -96,6 +98,7 @@ public class ExcelUploadService {
                     .name(dto.getStudentName())
                     .role(UserRole.STUDENT)
                     .status(UserStatus.PENDING)
+                    .gender(dto.getGender())
                     .build();
             entityManager.persist(user);
 
@@ -129,6 +132,17 @@ public class ExcelUploadService {
         // Batch Insert를 위해 영속성 컨텍스트를 한 번에 밀어내고 비움(지금 구조는 메모리 용량이 부족하면 문제 발생 개선 필요)
         entityManager.flush();
         entityManager.clear();
+    }
+
+    // 성별 정보 Enum 변환 메서드
+    private Gender parseGender(String gender) {
+        if ("남".equals(gender)) {
+            return Gender.MALE;
+        } else if ("여".equals(gender)) {
+            return Gender.FEMALE;
+        }
+        // try-catch문 상 해당 에러문구는 못 감
+        throw new IllegalArgumentException("성별은 남 또는 여만 입력 가능합니다, 입력된 값: " + gender);
     }
 
     // 부모 가입 정보 생성 메서드

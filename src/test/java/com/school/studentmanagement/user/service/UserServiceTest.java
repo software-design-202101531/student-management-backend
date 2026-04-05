@@ -3,7 +3,7 @@ package com.school.studentmanagement.user.service;
 
 import com.school.studentmanagement.affiliation.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.enums.UserStatus;
-import com.school.studentmanagement.user.dto.ActivateAccountRequest;
+import com.school.studentmanagement.user.dto.StudentActivationRequest;
 import com.school.studentmanagement.user.dto.VerifyStudentRequest;
 import com.school.studentmanagement.user.entity.User;
 import com.school.studentmanagement.user.repository.UserRepository;
@@ -60,7 +60,7 @@ public class UserServiceTest {
     @DisplayName("계정 활성화 실패: 이미 활성화된 계정인 경우")
     void activateAccount_Fail() {
         // Given
-        ActivateAccountRequest request = new ActivateAccountRequest();
+        StudentActivationRequest request = new StudentActivationRequest();
 
         User activeUser = User.builder().status(UserStatus.ACTIVE).build();
 
@@ -78,7 +78,7 @@ public class UserServiceTest {
     @DisplayName("계정 활성화 성공")
     void verifyUser_Success() {
         // Given
-        ActivateAccountRequest request = new ActivateAccountRequest();
+        StudentActivationRequest request = new StudentActivationRequest();
 
         User pendingUser = User.builder().status(UserStatus.PENDING).build();
 

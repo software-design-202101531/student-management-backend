@@ -2,9 +2,11 @@ package com.school.studentmanagement.user.service;
 
 import com.school.studentmanagement.affiliation.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.enums.UserStatus;
-import com.school.studentmanagement.user.dto.ActivateAccountRequest;
+import com.school.studentmanagement.user.dto.StudentActivationRequest;
 import com.school.studentmanagement.user.dto.VerifyStudentRequest;
+import com.school.studentmanagement.user.entity.Student;
 import com.school.studentmanagement.user.entity.User;
+import com.school.studentmanagement.user.repository.StudentRepository;
 import com.school.studentmanagement.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
     private final StudentAffiliationRepository affiliationRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -36,19 +39,30 @@ public class UserService {
 
     // 계정 활성화 메서드
     @Transactional
-    public void activateAccount(ActivateAccountRequest request) {
+    public void activateStudentAccount(StudentActivationRequest request) {
 
         // id를 이용하여 유저를 찾기
         User user = userRepository.findById(request.getId())
                 .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 사용자입니다"));
+
+        Student student = studentRepository.findById(request.getId())
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 학생 정보입니다"));
 
         // 활성화 안 된 유저인지 확인하기
         if(user.getStatus() != UserStatus.PENDING){
             throw new IllegalArgumentException("이미 활성화 된 계정입니다");
         }
 
-        // 비밀번호 암호화 적용후 저장하기
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-        user.activateAccount(request.getLoginId(), encodedPassword);
+        // 사용자 입력 정보 업데이트(아이디, 비밀번호)
+        user.activateAccount(
+                request.getLoginId(),
+                passwordEncoder.encode(request.getPassword())
+        );
+
+        // Student 세부 정보 업데이트
+        student.activateStudentInfo(
+                request.getAddress(),
+                request.getPhoneNumber()
+        );
     }
 }

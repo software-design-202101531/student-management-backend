@@ -1,7 +1,7 @@
 package com.school.studentmanagement.user.controller;
 
 
-import com.school.studentmanagement.user.dto.ActivateAccountRequest;
+import com.school.studentmanagement.user.dto.StudentActivationRequest;
 import com.school.studentmanagement.user.dto.VerifyStudentRequest;
 import com.school.studentmanagement.user.service.UserService;
 import jakarta.validation.Valid;
@@ -26,10 +26,12 @@ public class UserController {
         return ResponseEntity.ok(UserId);
     }
 
-    @PostMapping("/activate")
-    public ResponseEntity<String> activateAccount(@Valid @RequestBody ActivateAccountRequest request) {
-        userService.activateAccount(request);
+    @PostMapping("/activate-student")
+    public ResponseEntity<String> activateAccount(@Valid @RequestBody StudentActivationRequest request) {
+        userService.activateStudentAccount(request);
 
         return ResponseEntity.ok("학생 계정 활성화 완료");
     }
+
+
 }

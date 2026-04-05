@@ -5,6 +5,7 @@ package com.school.studentmanagement.global.config;
 
 import com.school.studentmanagement.affiliation.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.entity.Classroom;
+import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.user.entity.Student;
 import com.school.studentmanagement.user.entity.User;
 import com.school.studentmanagement.invitation.entity.ParentInvitation;
@@ -41,6 +42,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .name("최고관리자")
                     .loginId("admin")
                     .password(passwordEncoder.encode("admin1234!"))
+                    .gender(Gender.MALE)
                     .role(UserRole.ADMIN)
                     .status(UserStatus.ACTIVE)
                     .build();
@@ -90,6 +92,7 @@ public class InitDataConfig implements CommandLineRunner {
             User user = User.builder()
                     .name("홍길동")
                     .role(UserRole.STUDENT)
+                    .gender(Gender.MALE)
                     .status(UserStatus.PENDING)
                     .build();
             em.persist(user);
