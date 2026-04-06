@@ -2,7 +2,7 @@ package com.school.studentmanagement.invitation.controller;
 
 
 import com.school.studentmanagement.invitation.dto.ParentRegisterRequest;
-import com.school.studentmanagement.invitation.dto.ParentVerifyRequest;
+import com.school.studentmanagement.invitation.dto.VerifyParentRequest;
 import com.school.studentmanagement.invitation.service.ParentAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +20,7 @@ public class ParentAuthController {
 
     // 가입 가능 여부 검증 컨트롤러
     @PostMapping("/verify")
-    public ResponseEntity<Long> verifyParent(@RequestBody ParentVerifyRequest request) {
+    public ResponseEntity<Long> verifyParent(@RequestBody VerifyParentRequest request) {
         Long invitationId = parentAuthService.verifyParent(request);
 
         return ResponseEntity.ok(invitationId);

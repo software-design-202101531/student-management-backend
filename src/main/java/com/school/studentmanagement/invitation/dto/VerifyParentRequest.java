@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class ParentVerifyRequest {
+public class VerifyParentRequest {
     private Integer year;
     private Integer grade;
     private Integer classNum;
