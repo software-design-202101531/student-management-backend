@@ -1,6 +1,7 @@
 package com.school.studentmanagement.classroom.entity;
 
 
+import com.school.studentmanagement.user.entity.Teacher;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -18,16 +19,20 @@ public class Classroom {
     private Long id;
 
     @Column(nullable = false)
-    private Integer academicYear;
+    private Integer academicYear; // 연도
 
     @Column(nullable = false)
-    private Integer semester;
+    private Integer semester; // 학기
 
     @Column(nullable = false)
-    private Integer grade;
+    private Integer grade; // 학년
 
     @Column(nullable = false)
-    private Integer classNum;
+    private Integer classNum; // 반
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "homeroom_teacher_id")
+    private Teacher homeroomTeacher; // 담임 선생님
 
     @Builder
     public Classroom(Integer academicYear, Integer semester, Integer grade, Integer classNum) {
