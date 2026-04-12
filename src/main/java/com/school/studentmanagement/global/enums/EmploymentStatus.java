@@ -1,5 +1,6 @@
 package com.school.studentmanagement.global.enums;
 
+
 public enum EmploymentStatus {
     ACTIVE,     // 재직 중(정상 근무중)
     ON_LEAVE,   // 휴직 중(육아휴직, 병가, 연수 등)

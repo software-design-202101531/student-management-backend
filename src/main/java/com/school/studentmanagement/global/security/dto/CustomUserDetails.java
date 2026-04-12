@@ -25,16 +25,21 @@ public class CustomUserDetails implements UserDetails {
         );
     }
 
+    // pk 반환 메서드
+    public Long getUserId() {
+        return user.getId();
+    }
+
     // 유저 비밀번호 반환 메서드
     @Override
     public String getPassword() {
         return user.getPassword();
     }
 
-    // 유저 pk 반환 메서드
+    // 유저 로그인 id
     @Override
     public String getUsername() {
-        return String.valueOf(user.getId());
+        return user.getLoginId();
     }
 
 

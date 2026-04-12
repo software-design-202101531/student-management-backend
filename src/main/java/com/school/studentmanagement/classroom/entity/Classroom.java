@@ -35,10 +35,11 @@ public class Classroom {
     private Teacher homeroomTeacher; // 담임 선생님
 
     @Builder
-    public Classroom(Integer academicYear, Integer semester, Integer grade, Integer classNum) {
+    public Classroom(Integer academicYear, Integer semester, Integer grade, Integer classNum, Teacher homeroomTeacher) {
         this.academicYear = academicYear;
         this.semester = semester;
         this.grade = grade;
         this.classNum = classNum;
+        this.homeroomTeacher = homeroomTeacher;
     }
 }

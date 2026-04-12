@@ -1,0 +1,87 @@
+package com.school.studentmanagement.record.entity;
+
+import com.school.studentmanagement.global.enums.RecordCategory;
+import com.school.studentmanagement.subject.entity.Subject;
+import com.school.studentmanagement.user.entity.Student;
+import com.school.studentmanagement.user.entity.Teacher;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "student_records")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class StudentRecord {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // 기록의 대상(학생)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+
+    // 기록 작성 교사
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id", nullable = false)
+    private Teacher teacher;
+
+    // 학년도
+    @Column(nullable = false)
+    private Integer academicYear;
+
+    // 학기
+    @Column(nullable = false)
+    private Integer semester;
+
+    // 세특인지 행특인지 구분
+    @Column(nullable = false)
+    private RecordCategory recordCategory;
+
+    // 세특은 필수, 행특은 Null
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name ="subject_id")
+    private Subject subject;
+
+    @Lob // 대용량 텍스트 처리
+    @Column(nullable = false)
+    private String content;
+
+    // 생성자
+    private StudentRecord(Student student, Teacher teacher, Integer academicYear, Integer semester, RecordCategory recordCategory, Subject subject, String content) {
+        this.student = student;
+        this.teacher = teacher;
+        this.academicYear = academicYear;
+        this.semester = semester;
+        this.recordCategory = recordCategory;
+        this.subject = subject;
+        this.content = content;
+    }
+
+    // 세특 생성 메서드
+    public static StudentRecord createSubjectOpinion(Student student, Teacher teacher, Integer academicYear, Integer semester, Subject subject, String content) {
+        // 만일 과목이 없다면 예외 던지기
+        if (subject == null) {
+            throw new IllegalArgumentException("반드시 과목 정보가 필요합니다");
+        }
+
+        return new StudentRecord(
+                student, teacher, academicYear, semester,
+                RecordCategory.SUBJECT_OPINION,
+                subject, content
+        );
+    }
+
+    // 행특 전용 생성 메서드
+    public static StudentRecord createBehaviorOpinion(Student student, Teacher teacher, Integer academicYear, Integer semester, String content) {
+        return new StudentRecord(
+                student, teacher, academicYear, semester,
+                RecordCategory.BEHAVIOR_OPINION,
+                null, content
+        );
+    }
+}

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TeacherAssignment {
-
+    // 어떤 선생님이 어떤 반에서 어떤 수업을 가르치는가
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
