@@ -1,5 +1,4 @@
-package com.school.studentmanagement.affiliation.entity;
-
+package com.school.studentmanagement.StudentAffiliation.entity;
 
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.user.entity.Student;
@@ -31,9 +30,9 @@ public class StudentAffiliation {
     private Integer studentNum;
 
     @Builder
-    public StudentAffiliation(Student student, Integer studentNum, Classroom classroom) {
+    public StudentAffiliation(Student student, Classroom classroom, Integer studentNum) {
         this.student = student;
-        this.studentNum = studentNum;
         this.classroom = classroom;
+        this.studentNum = studentNum;
     }
 }

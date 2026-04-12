@@ -2,7 +2,7 @@
 
 package com.school.studentmanagement.global.config;
 
-import com.school.studentmanagement.affiliation.entity.StudentAffiliation;
+import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.EmploymentStatus;
 import com.school.studentmanagement.global.enums.Gender;

@@ -1,14 +1,15 @@
-package com.school.studentmanagement.affiliation.repository;
+package com.school.studentmanagement.StudentAffiliation.repository;
 
-import com.school.studentmanagement.affiliation.entity.StudentAffiliation;
+import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
 import com.school.studentmanagement.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
-public interface StudentAffiliationRepository extends JpaRepository<StudentAffiliation, Long> {
+public interface StudentAffiliationRepository extends JpaRepository<StudentAffiliation,Long> {
 
     // 학년, 반, 번호, 이름이 일치하고 상태가 'PENDING'인 User 엔티티를 찾아옵니더!
     @Query("SELECT u FROM StudentAffiliation sa " +
@@ -27,4 +28,12 @@ public interface StudentAffiliationRepository extends JpaRepository<StudentAffil
                                           @Param("classNum") Integer classNum,
                                           @Param("studentNum") Integer studentNum,
                                           @Param("name") String name);
+
+    // 담임인 반의 ID를 넣으면 소속된 학생들의 정보를 가져온다
+    @Query("SELECT sa FROM StudentAffiliation sa " +
+            "JOIN FETCH sa.student s " +
+            "JOIN FETCH s.user " +
+            "WHERE sa.classroom.id = :classroomId " +
+            "ORDER BY sa.studentNum ASC")
+    List<StudentAffiliation> findAllByClassroomId(@Param("classroomId") Long classroomId);
 }

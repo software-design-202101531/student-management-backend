@@ -1,6 +1,6 @@
 package com.school.studentmanagement.user.service;
 
-import com.school.studentmanagement.affiliation.entity.StudentAffiliation;
+import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.global.enums.RelationType;

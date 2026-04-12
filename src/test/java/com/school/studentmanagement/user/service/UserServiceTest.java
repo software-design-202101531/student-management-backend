@@ -1,7 +1,7 @@
 package com.school.studentmanagement.user.service;
 
 
-import com.school.studentmanagement.affiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.user.dto.StudentActivationRequest;
 import com.school.studentmanagement.user.dto.VerifyStudentRequest;
@@ -68,7 +68,7 @@ public class UserServiceTest {
                 .willReturn(Optional.of(activeUser));
 
         // When & Then
-        assertThatThrownBy(() -> userService.activateAccount(request))
+        assertThatThrownBy(() -> userService.activateStudentAccount(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 활성화 된 계정입니다");
 
@@ -88,7 +88,7 @@ public class UserServiceTest {
                 .willReturn("encodedPassword");
 
         // When
-        userService.activateAccount(request);
+        userService.activateStudentAccount(request);
 
         // Then
         // 암호화 로직이 한 번이라도 불렸는가?

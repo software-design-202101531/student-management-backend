@@ -1,6 +1,6 @@
 package com.school.studentmanagement.user.service;
 
-import com.school.studentmanagement.affiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.user.dto.StudentActivationRequest;
 import com.school.studentmanagement.user.dto.VerifyStudentRequest;
