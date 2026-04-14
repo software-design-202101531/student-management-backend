@@ -84,4 +84,11 @@ public class StudentRecord {
                 null, content
         );
     }
+
+    // 행특 내용 수정 메서드
+    public void updateContent(String newContent, Teacher teacher) {
+        this.content = newContent;
+        // 담임 선생님이 바뀐 경우를 가정
+        this.teacher = teacher;
+    }
 }

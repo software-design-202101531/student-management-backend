@@ -36,4 +36,18 @@ public interface StudentAffiliationRepository extends JpaRepository<StudentAffil
             "WHERE sa.classroom.id = :classroomId " +
             "ORDER BY sa.studentNum ASC")
     List<StudentAffiliation> findAllByClassroomId(@Param("classroomId") Long classroomId);
+
+    // 연도, 학기 정보를 바탕으로 학생의 반 배정 정보를 확인
+    @Query("SELECT sa FROM StudentAffiliation sa " +
+            "JOIN FETCH sa.student s " +
+            "JOIN FETCH s.user u " +
+            "JOIN FETCH sa.classroom c " +
+            "WHERE s.id = :studentId " +
+            "AND c.academicYear = :year " +
+            "AND c.semester = :semester")
+    Optional<StudentAffiliation> findWithAllDetails(
+            @Param("studentId") Long studentId,
+            @Param("year") Integer year,
+            @Param("semester") Integer semester
+    );
 }

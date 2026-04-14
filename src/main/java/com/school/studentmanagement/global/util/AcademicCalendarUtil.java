@@ -32,4 +32,15 @@ public class AcademicCalendarUtil {
         // 9월부터 다음 해 2월까지는 2학기
         return 2;
     }
+
+    // 수정 가능 상태 확인
+    public boolean isModifiable(int targetYear) {
+        LocalDate now = LocalDate.now();
+
+        // 마감일 기준: 현재년도 + 1년의 3월 1일
+        LocalDate deadlint = LocalDate.of(targetYear + 1, 3, 1);
+
+        // 현재 날짜가 마감일 전이면 true
+        return now.isBefore(deadlint);
+    }
 }
