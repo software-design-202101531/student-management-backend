@@ -10,12 +10,12 @@ import java.util.Optional;
 public interface SubjectAssignmentRepository extends JpaRepository<SubjectAssignment,Long> {
 
     @Query("SELECT sa FROM SubjectAssignment sa " +
-            "JOIN FETCH sa.classroom c " +
-            "JOIN FETCH sa.subject s " +
-            "JOIN FETCH sa.teacher t " +
-            "WHERE t.id = :teacherId " +
-            "AND c.id = :classroomId " +
-            "AND s.id = :subjectId " +
+            "JOIN FETCH sa.classroom " +
+            "JOIN FETCH sa.subject " +
+            "JOIN FETCH sa.teacher " +
+            "WHERE sa.teacher.id = :teacherId " +
+            "AND sa.classroom.id = :classroomId " +
+            "AND sa.subject.id = :subjectId " +
             "AND sa.academicYear = :year " +
             "AND sa.semester = :semester ")
     Optional<SubjectAssignment> findValidAssignment(

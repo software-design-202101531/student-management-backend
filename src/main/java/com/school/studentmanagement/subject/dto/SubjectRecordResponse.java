@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class SubjectRecorndResponse {
+public class SubjectRecordResponse {
     // 과세특 조회 응답 DTO
     private Long recordId;
     private String content;

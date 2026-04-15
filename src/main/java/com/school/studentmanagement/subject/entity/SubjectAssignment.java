@@ -10,6 +10,7 @@ import org.apache.logging.log4j.util.Lazy;
 @Table(name = "subject_assignments")
 @Getter
 public class SubjectAssignment {
+    // 어떤 선생님이 어떤 반을 어떤 과목으로 담당하는지 표현
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

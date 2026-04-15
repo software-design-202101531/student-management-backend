@@ -11,7 +11,21 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "student_records")
+@Table(
+        name = "student_records",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_student_record", // DB에 저장될 제약조건 이름
+                        columnNames = {
+                                "student_id",       // 누구의
+                                "academic_year",    // 몇 년도
+                                "semester",         // 몇 학기에
+                                "record_category",  // 과세특이고
+                                "subject_id"        // 무슨 과목인지
+                        }
+                )
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StudentRecord {
@@ -42,7 +56,7 @@ public class StudentRecord {
     @Column(nullable = false)
     private RecordCategory recordCategory;
 
-    // 세특은 필수, 행특은 Null
+    // 세특은 필수, 행특은 Null(이로 인해 행특은 중복 위험 있음 처리할 것)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name ="subject_id")
     private Subject subject;

@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StudentAffiliation {
+    // 반배정 정보
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,7 +28,7 @@ public class StudentAffiliation {
     private Classroom classroom;
 
     @Column(nullable = false)
-    private Integer studentNum;
+    private Integer studentNum; // 학생 번호
 
     @Builder
     public StudentAffiliation(Student student, Classroom classroom, Integer studentNum) {

@@ -16,7 +16,7 @@ public interface StudentRecordRepository extends JpaRepository<StudentRecord,Lon
     );
 
     // 과세특 탐색
-    Optional<StudentRecord> findByStudentAndRecordCategoryAndSubjectIdAndAcademicYearAndSemester(
+    Optional<StudentRecord> findByStudentIdAndRecordCategoryAndSubjectIdAndAcademicYearAndSemester(
             Long studentId,
             RecordCategory category,
             Long SubjectId,
