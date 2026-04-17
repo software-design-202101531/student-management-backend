@@ -3,12 +3,14 @@ package com.school.studentmanagement.subject.entity;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.user.entity.Teacher;
 import jakarta.persistence.*;
-import lombok.Getter;
-import org.apache.logging.log4j.util.Lazy;
+import lombok.*;
 
 @Entity
 @Table(name = "subject_assignments")
 @Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class SubjectAssignment {
     // 어떤 선생님이 어떤 반을 어떤 과목으로 담당하는지 표현
 

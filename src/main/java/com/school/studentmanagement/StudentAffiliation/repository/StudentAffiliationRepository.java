@@ -29,7 +29,7 @@ public interface StudentAffiliationRepository extends JpaRepository<StudentAffil
                                           @Param("studentNum") Integer studentNum,
                                           @Param("name") String name);
 
-    // 담임인 반의 ID를 넣으면 소속된 학생들의 정보를 가져온다
+    // 반의 ID를 넣으면 소속된 학생들의 정보를 가져온다
     @Query("SELECT sa FROM StudentAffiliation sa " +
             "JOIN FETCH sa.student s " +
             "JOIN FETCH s.user " +
@@ -50,4 +50,6 @@ public interface StudentAffiliationRepository extends JpaRepository<StudentAffil
             @Param("year") Integer year,
             @Param("semester") Integer semester
     );
+
+    Optional<StudentAffiliation> findByStudentIdAndClassroomId(Long studentId, Long classroomId);
 }

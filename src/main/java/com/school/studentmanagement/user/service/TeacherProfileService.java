@@ -33,6 +33,7 @@ public class TeacherProfileService {
                 .name(teacher.getUser().getName())
                 .employeeNumber(teacher.getEmployeeNumber())
                 .subjectName(teacher.getSubject().getName())
+                .subjectId(teacher.getSubject().getId())
                 .employmentStatus(teacher.getEmploymentStatus())
                 .isHomeRoom(homeroom.isPresent())
                 .homeroomClassId(homeroom.map(Classroom::getId).orElse(null))

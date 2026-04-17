@@ -7,6 +7,7 @@ import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.EmploymentStatus;
 import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.subject.entity.Subject;
+import com.school.studentmanagement.subject.entity.SubjectAssignment;
 import com.school.studentmanagement.user.entity.Student;
 import com.school.studentmanagement.user.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
@@ -76,6 +77,7 @@ public class InitDataConfig implements CommandLineRunner {
         Long teacherCount = em.createQuery("SELECT count(t) FROM Teacher t", Long.class).getSingleResult();
         Teacher teacher1 = null;
         Teacher teacher2 = null;
+        Teacher teacher3 = null;
 
         if (teacherCount == 0) {
             // 선생님 1 몸통(User) 생성
@@ -122,10 +124,33 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(teacher2);
 
-            System.out.println("🍠 [춘식이 알림] 더미 선생님 데이터(김수학, 박국어) 맹글었슈!");
+            // 선생님 3 몸통(User) 생성 (1학년 4반 담임 & 수학)
+            User tUser3 = User.builder()
+                    .loginId("teacher3")
+                    .password(passwordEncoder.encode("test1234"))
+                    .name("최수학")
+                    .gender(Gender.MALE)
+                    .role(UserRole.TEACHER)
+                    .status(UserStatus.ACTIVE)
+                    .build();
+            em.persist(tUser3);
+
+            // 선생님 3 꼬리(Teacher) 생성
+            teacher3 = Teacher.builder()
+                    .user(tUser3)
+                    .employeeNumber("EMP2026003")
+                    .subject(mathSubject)
+                    .officeLocation("본관 2층 제3교무실")
+                    .officePhoneNumber("02-123-4569")
+                    .employmentStatus(EmploymentStatus.ACTIVE)
+                    .build();
+            em.persist(teacher3);
+
+            System.out.println("🍠 [춘식이 알림] 더미 선생님 데이터(김수학, 박국어, 최수학) 맹글었슈!");
         } else {
             teacher1 = em.createQuery("SELECT t FROM Teacher t WHERE t.employeeNumber = 'EMP2026001'", Teacher.class).getSingleResult();
             teacher2 = em.createQuery("SELECT t FROM Teacher t WHERE t.employeeNumber = 'EMP2026002'", Teacher.class).getSingleResult();
+            teacher3 = em.createQuery("SELECT t FROM Teacher t WHERE t.employeeNumber = 'EMP2026003'", Teacher.class).getSingleResult();
         }
 
 
@@ -164,6 +189,16 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(class3);
 
+            // 1학년 4반 (담임: 최수학)
+            Classroom class4 = Classroom.builder()
+                    .academicYear(2026)
+                    .semester(1)
+                    .grade(1)
+                    .classNum(4)
+                    .homeroomTeacher(teacher3)
+                    .build();
+            em.persist(class4);
+
             System.out.println("🍠 [춘식이 알림] 학급 생성 및 담임 선생님 배정 완료했슈!");
 
             // ==========================================
@@ -198,6 +233,105 @@ public class InitDataConfig implements CommandLineRunner {
             em.persist(invitation);
 
             System.out.println("🍠 [춘식이 알림] 1학년 3반 15번 홍길동 데이터까지 싹 다 넣었슈!");
+
+            // ==========================================
+            // 5. 1학년 4반 더미 학생 20명 생성
+            // ==========================================
+            for (int i = 1; i <= 20; i++) {
+                User sUser = User.builder()
+                        .name("1-4학생" + String.format("%02d", i))
+                        .role(UserRole.STUDENT)
+                        .gender(i % 2 == 0 ? Gender.FEMALE : Gender.MALE)
+                        .status(UserStatus.PENDING)
+                        .build();
+                em.persist(sUser);
+
+                Student sStudent = Student.builder()
+                        .user(sUser)
+                        .enrollmentYear(2026)
+                        .build();
+                em.persist(sStudent);
+
+                StudentAffiliation sAffiliation = StudentAffiliation.builder()
+                        .student(sStudent)
+                        .classroom(class4)
+                        .studentNum(i)
+                        .build();
+                em.persist(sAffiliation);
+            }
+            System.out.println("🍠 [춘식이 알림] 1학년 4반 20명 학생 데이터 맹글었슈!");
+
+            // ==========================================
+            // 6. 1학년 2반 더미 학생 10명 생성
+            // ==========================================
+            for (int i = 1; i <= 10; i++) {
+                User sUser = User.builder()
+                        .name("1-2학생" + String.format("%02d", i))
+                        .role(UserRole.STUDENT)
+                        .gender(i % 2 == 0 ? Gender.FEMALE : Gender.MALE)
+                        .status(UserStatus.PENDING)
+                        .build();
+                em.persist(sUser);
+
+                Student sStudent = Student.builder()
+                        .user(sUser)
+                        .enrollmentYear(2026)
+                        .build();
+                em.persist(sStudent);
+
+                StudentAffiliation sAffiliation = StudentAffiliation.builder()
+                        .student(sStudent)
+                        .classroom(class2)
+                        .studentNum(i)
+                        .build();
+                em.persist(sAffiliation);
+            }
+            System.out.println("🍠 [춘식이 알림] 1학년 2반 10명 학생 데이터 맹글었슈!");
+
+            // ==========================================
+            // 7. 과목 배정(SubjectAssignment) 생성
+            // ==========================================
+            // 최수학(teacher3) 선생님을 1학년 4반(class4) 수학(mathSubject) 담당으로 배정
+            SubjectAssignment assignment1 = SubjectAssignment.builder()
+                    .teacher(teacher3)
+                    .classroom(class4)
+                    .subject(mathSubject)
+                    .academicYear(2026)
+                    .semester(1)
+                    .build();
+            em.persist(assignment1);
+
+            // 최수학(teacher3) 선생님을 1학년 2반(class2) 수학(mathSubject) 담당으로 배정
+            SubjectAssignment assignment2 = SubjectAssignment.builder()
+                    .teacher(teacher3)
+                    .classroom(class2)
+                    .subject(mathSubject)
+                    .academicYear(2026)
+                    .semester(1)
+                    .build();
+            em.persist(assignment2);
+
+            // 김수학(teacher1) 선생님을 1학년 1반(class1) 수학(mathSubject) 담당으로 배정
+            SubjectAssignment assignment3 = SubjectAssignment.builder()
+                    .teacher(teacher1)
+                    .classroom(class1)
+                    .subject(mathSubject)
+                    .academicYear(2026)
+                    .semester(1)
+                    .build();
+            em.persist(assignment3);
+
+            // 박국어(teacher2) 선생님을 1학년 2반(class2) 국어(korSubject) 담당으로 배정
+            SubjectAssignment assignment4 = SubjectAssignment.builder()
+                    .teacher(teacher2)
+                    .classroom(class2)
+                    .subject(korSubject)
+                    .academicYear(2026)
+                    .semester(1)
+                    .build();
+            em.persist(assignment4);
+
+            System.out.println("🍠 [춘식이 알림] 모든 선생님의 과목 배정(SubjectAssignment) 완료!");
         } else {
             System.out.println("🍠 [춘식이 알림] 2026학년도 학급 데이터가 이미 있어서 스킵합니더.");
         }

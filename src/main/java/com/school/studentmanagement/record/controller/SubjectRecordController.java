@@ -28,12 +28,13 @@ public class SubjectRecordController {
         // 토큰에서 userId 추출
         Long teacherId = customUserDetails.getUserId();
 
-        SubjectRecordResponse response = subjectRecordService.getSubjectRecord(classroomId, subjectId, studentId, teacherId);
+        SubjectRecordResponse response = subjectRecordService.getSubjectRecord(classroomId, studentId, subjectId, teacherId);
 
         return ResponseEntity.ok(response);
     }
 
     // 과세특 저장 및 수정
+    @PostMapping
     public ResponseEntity<Void> saveSubjectRecord(
             @PathVariable("classroomId") Long classroomId,
             @PathVariable("subjectId") Long subjectId,
@@ -44,7 +45,7 @@ public class SubjectRecordController {
         // 토큰에서 userId 추출
         Long teacherId = customUserDetails.getUserId();
 
-        subjectRecordService.saveSubjectRecord(classroomId, subjectId, studentId, teacherId, request);
+        subjectRecordService.saveSubjectRecord(classroomId, studentId, subjectId, teacherId, request);
 
         // 200 OK 상태코드 리턴
         return ResponseEntity.ok().build();

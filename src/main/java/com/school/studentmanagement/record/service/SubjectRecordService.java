@@ -52,7 +52,7 @@ public class SubjectRecordService {
 
     // 과세특 상세 조회
     @Transactional(readOnly = true)
-    public SubjectRecordResponse getSubjectRecord(Long studentId, Long classroomId, Long subjectId, Long teacherId) {
+    public SubjectRecordResponse getSubjectRecord(Long classroomId, Long studentId, Long subjectId, Long teacherId) {
         int currentYear = academicCalendarUtil.getCurrentAcademicYear();
         int currentSemester = academicCalendarUtil.getCurrentSemester();
 
@@ -80,7 +80,7 @@ public class SubjectRecordService {
 
     // 과세특 저장/수정
     @Transactional
-    public void saveSubjectRecord(Long studentId, Long classroomId, Long subjectId, Long teacherId, SubjectRecordRequest request) {
+    public void saveSubjectRecord(Long classroomId, Long studentId, Long subjectId, Long teacherId, SubjectRecordRequest request) {
         // 서버 시간을 기준으로 현재 연도, 학기를 파악
         int currentYear = academicCalendarUtil.getCurrentAcademicYear();
         int currentSemester = academicCalendarUtil.getCurrentSemester();

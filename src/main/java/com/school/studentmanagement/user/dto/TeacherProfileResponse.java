@@ -13,6 +13,7 @@ public class TeacherProfileResponse {
     private String employeeNumber;
     private String subjectName;
     private EmploymentStatus employmentStatus;
+    private Long subjectId;
 
     // 담임 여부
     private Boolean isHomeRoom;
