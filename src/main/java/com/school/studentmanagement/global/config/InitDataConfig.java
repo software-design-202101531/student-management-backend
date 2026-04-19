@@ -5,7 +5,11 @@ package com.school.studentmanagement.global.config;
 import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.EmploymentStatus;
+import com.school.studentmanagement.global.enums.ExamType;
 import com.school.studentmanagement.global.enums.Gender;
+import com.school.studentmanagement.grade.entity.Exam;
+import com.school.studentmanagement.grade.entity.StudentGrade;
+import com.school.studentmanagement.grade.entity.StudentSemesterStat;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.subject.entity.SubjectAssignment;
 import com.school.studentmanagement.user.entity.Student;
@@ -21,6 +25,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
@@ -237,6 +244,7 @@ public class InitDataConfig implements CommandLineRunner {
             // ==========================================
             // 5. 1학년 4반 더미 학생 20명 생성
             // ==========================================
+            List<Student> class4Students = new ArrayList<>();
             for (int i = 1; i <= 20; i++) {
                 User sUser = User.builder()
                         .name("1-4학생" + String.format("%02d", i))
@@ -258,6 +266,7 @@ public class InitDataConfig implements CommandLineRunner {
                         .studentNum(i)
                         .build();
                 em.persist(sAffiliation);
+                class4Students.add(sStudent);
             }
             System.out.println("🍠 [춘식이 알림] 1학년 4반 20명 학생 데이터 맹글었슈!");
 
@@ -331,7 +340,59 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(assignment4);
 
+            // 박국어(teacher2) 선생님을 1학년 4반(class4) 국어(korSubject) 담당으로 배정
+            SubjectAssignment assignment5 = SubjectAssignment.builder()
+                    .teacher(teacher2)
+                    .classroom(class4)
+                    .subject(korSubject)
+                    .academicYear(2026)
+                    .semester(1)
+                    .build();
+            em.persist(assignment5);
+
             System.out.println("🍠 [춘식이 알림] 모든 선생님의 과목 배정(SubjectAssignment) 완료!");
+
+            // ==========================================
+            // 8. 1학년 4반 중간고사 성적 초기화
+            // ==========================================
+            Exam midterm2026 = Exam.builder()
+                    .academicYear(2026)
+                    .semester(1)
+                    .examType(ExamType.MIDTERM)
+                    .build();
+            em.persist(midterm2026);
+
+            int[] mathScores = {85, 92, 78, 65, 95, 88, 73, 60, 91, 84, 77, 69, 96, 82, 71, 87, 63, 93, 79, 88};
+            int[] korScores  = {90, 85, 72, 80, 88, 75, 82, 91, 68, 86, 94, 77, 83, 71, 89, 76, 95, 70, 84, 78};
+
+            for (int i = 0; i < class4Students.size(); i++) {
+                Student s = class4Students.get(i);
+
+                em.persist(StudentGrade.builder()
+                        .student(s)
+                        .exam(midterm2026)
+                        .subject(mathSubject)
+                        .rawScore(mathScores[i])
+                        .build());
+
+                em.persist(StudentGrade.builder()
+                        .student(s)
+                        .exam(midterm2026)
+                        .subject(korSubject)
+                        .rawScore(korScores[i])
+                        .build());
+
+                int total = mathScores[i] + korScores[i];
+                em.persist(StudentSemesterStat.builder()
+                        .student(s)
+                        .academicYear(2026)
+                        .semester(1)
+                        .totalScore(total)
+                        .averageScore(total / 2.0)
+                        .build());
+            }
+            System.out.println("🍠 [춘식이 알림] 1학년 4반 중간고사 성적(수학·국어) 초기화 완료했슈!");
+
         } else {
             System.out.println("🍠 [춘식이 알림] 2026학년도 학급 데이터가 이미 있어서 스킵합니더.");
         }
