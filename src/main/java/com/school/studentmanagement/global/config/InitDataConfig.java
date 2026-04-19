@@ -1,5 +1,3 @@
-// 📍 위치: src/main/java/com/school/studentmanagement/global/config/InitDataConfig.java
-
 package com.school.studentmanagement.global.config;
 
 import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
@@ -57,7 +55,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .status(UserStatus.ACTIVE)
                     .build();
             em.persist(adminUser);
-            System.out.println("🍠 [춘식이 알림] 최고 관리자 계정 뚝딱 맹글었슈!");
+            System.out.println("[초기화] 최고 관리자 계정이 생성되었습니다.");
         }
 
         // ==========================================
@@ -72,14 +70,14 @@ public class InitDataConfig implements CommandLineRunner {
             korSubject = new Subject("국어");
             em.persist(mathSubject);
             em.persist(korSubject);
-            System.out.println("🍠 [춘식이 알림] 기초 과목(수학, 국어) 데이터 세팅 완료!");
+            System.out.println("[초기화] 기초 과목(수학, 국어) 데이터가 생성되었습니다.");
         } else {
             mathSubject = em.createQuery("SELECT s FROM Subject s WHERE s.name = '수학'", Subject.class).getSingleResult();
             korSubject = em.createQuery("SELECT s FROM Subject s WHERE s.name = '국어'", Subject.class).getSingleResult();
         }
 
         // ==========================================
-        // 2. 선생님 계정 생성 (담임 배정용)
+        // 2. 교사 계정 생성 (담임 배정용)
         // ==========================================
         Long teacherCount = em.createQuery("SELECT count(t) FROM Teacher t", Long.class).getSingleResult();
         Teacher teacher1 = null;
@@ -87,7 +85,7 @@ public class InitDataConfig implements CommandLineRunner {
         Teacher teacher3 = null;
 
         if (teacherCount == 0) {
-            // 선생님 1 몸통(User) 생성
+            // 교사 1 - User 생성
             User tUser1 = User.builder()
                     .loginId("teacher01")
                     .password(passwordEncoder.encode("test1234!"))
@@ -98,7 +96,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(tUser1);
 
-            // 선생님 1 꼬리(Teacher) 생성
+            // 교사 1 - Teacher 상세 정보 생성
             teacher1 = Teacher.builder()
                     .user(tUser1)
                     .employeeNumber("EMP2026001")
@@ -109,7 +107,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(teacher1);
 
-            // 선생님 2 몸통(User) 생성
+            // 교사 2 - User 생성
             User tUser2 = User.builder()
                     .loginId("teacher02")
                     .password(passwordEncoder.encode("test1234!"))
@@ -120,7 +118,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(tUser2);
 
-            // 선생님 2 꼬리(Teacher) 생성
+            // 교사 2 - Teacher 상세 정보 생성
             teacher2 = Teacher.builder()
                     .user(tUser2)
                     .employeeNumber("EMP2026002")
@@ -131,7 +129,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(teacher2);
 
-            // 선생님 3 몸통(User) 생성 (1학년 4반 담임 & 수학)
+            // 교사 3 - User 생성 (1학년 4반 담임 겸 수학 담당)
             User tUser3 = User.builder()
                     .loginId("teacher3")
                     .password(passwordEncoder.encode("test1234"))
@@ -142,7 +140,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(tUser3);
 
-            // 선생님 3 꼬리(Teacher) 생성
+            // 교사 3 - Teacher 상세 정보 생성
             teacher3 = Teacher.builder()
                     .user(tUser3)
                     .employeeNumber("EMP2026003")
@@ -153,7 +151,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(teacher3);
 
-            System.out.println("🍠 [춘식이 알림] 더미 선생님 데이터(김수학, 박국어, 최수학) 맹글었슈!");
+            System.out.println("[초기화] 교사 계정(김수학, 박국어, 최수학)이 생성되었습니다.");
         } else {
             teacher1 = em.createQuery("SELECT t FROM Teacher t WHERE t.employeeNumber = 'EMP2026001'", Teacher.class).getSingleResult();
             teacher2 = em.createQuery("SELECT t FROM Teacher t WHERE t.employeeNumber = 'EMP2026002'", Teacher.class).getSingleResult();
@@ -187,7 +185,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(class2);
 
-            // 1학년 3반 (홍길동 전학용 - 일단 담임 없이)
+            // 1학년 3반 (전학생 테스트용 - 담임 미배정)
             Classroom class3 = Classroom.builder()
                     .academicYear(2026)
                     .semester(1)
@@ -206,10 +204,10 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(class4);
 
-            System.out.println("🍠 [춘식이 알림] 학급 생성 및 담임 선생님 배정 완료했슈!");
+            System.out.println("[초기화] 학급 생성 및 담임 교사 배정이 완료되었습니다.");
 
             // ==========================================
-            // 4. 초기 테스트용 더미 학생 및 소속/초대장 생성 (3반 소속)
+            // 4. 테스트용 학생 및 학급 소속/초대장 생성 (1학년 3반)
             // ==========================================
             User user = User.builder()
                     .name("홍길동")
@@ -239,10 +237,10 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(invitation);
 
-            System.out.println("🍠 [춘식이 알림] 1학년 3반 15번 홍길동 데이터까지 싹 다 넣었슈!");
+            System.out.println("[초기화] 1학년 3반 15번 홍길동 학생 및 초대장 데이터가 생성되었습니다.");
 
             // ==========================================
-            // 5. 1학년 4반 더미 학생 20명 생성
+            // 5. 1학년 4반 학생 20명 생성
             // ==========================================
             List<Student> class4Students = new ArrayList<>();
             for (int i = 1; i <= 20; i++) {
@@ -268,10 +266,10 @@ public class InitDataConfig implements CommandLineRunner {
                 em.persist(sAffiliation);
                 class4Students.add(sStudent);
             }
-            System.out.println("🍠 [춘식이 알림] 1학년 4반 20명 학생 데이터 맹글었슈!");
+            System.out.println("[초기화] 1학년 4반 학생 20명 데이터가 생성되었습니다.");
 
             // ==========================================
-            // 6. 1학년 2반 더미 학생 10명 생성
+            // 6. 1학년 2반 학생 10명 생성
             // ==========================================
             for (int i = 1; i <= 10; i++) {
                 User sUser = User.builder()
@@ -295,12 +293,12 @@ public class InitDataConfig implements CommandLineRunner {
                         .build();
                 em.persist(sAffiliation);
             }
-            System.out.println("🍠 [춘식이 알림] 1학년 2반 10명 학생 데이터 맹글었슈!");
+            System.out.println("[초기화] 1학년 2반 학생 10명 데이터가 생성되었습니다.");
 
             // ==========================================
             // 7. 과목 배정(SubjectAssignment) 생성
             // ==========================================
-            // 최수학(teacher3) 선생님을 1학년 4반(class4) 수학(mathSubject) 담당으로 배정
+            // 최수학(teacher3) → 1학년 4반(class4) 수학 담당
             SubjectAssignment assignment1 = SubjectAssignment.builder()
                     .teacher(teacher3)
                     .classroom(class4)
@@ -310,7 +308,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(assignment1);
 
-            // 최수학(teacher3) 선생님을 1학년 2반(class2) 수학(mathSubject) 담당으로 배정
+            // 최수학(teacher3) → 1학년 2반(class2) 수학 담당
             SubjectAssignment assignment2 = SubjectAssignment.builder()
                     .teacher(teacher3)
                     .classroom(class2)
@@ -320,7 +318,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(assignment2);
 
-            // 김수학(teacher1) 선생님을 1학년 1반(class1) 수학(mathSubject) 담당으로 배정
+            // 김수학(teacher1) → 1학년 1반(class1) 수학 담당
             SubjectAssignment assignment3 = SubjectAssignment.builder()
                     .teacher(teacher1)
                     .classroom(class1)
@@ -330,7 +328,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(assignment3);
 
-            // 박국어(teacher2) 선생님을 1학년 2반(class2) 국어(korSubject) 담당으로 배정
+            // 박국어(teacher2) → 1학년 2반(class2) 국어 담당
             SubjectAssignment assignment4 = SubjectAssignment.builder()
                     .teacher(teacher2)
                     .classroom(class2)
@@ -340,7 +338,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(assignment4);
 
-            // 박국어(teacher2) 선생님을 1학년 4반(class4) 국어(korSubject) 담당으로 배정
+            // 박국어(teacher2) → 1학년 4반(class4) 국어 담당
             SubjectAssignment assignment5 = SubjectAssignment.builder()
                     .teacher(teacher2)
                     .classroom(class4)
@@ -350,7 +348,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(assignment5);
 
-            System.out.println("🍠 [춘식이 알림] 모든 선생님의 과목 배정(SubjectAssignment) 완료!");
+            System.out.println("[초기화] 교사별 과목 배정(SubjectAssignment)이 완료되었습니다.");
 
             // ==========================================
             // 8. 1학년 4반 중간고사 성적 초기화
@@ -391,10 +389,10 @@ public class InitDataConfig implements CommandLineRunner {
                         .averageScore(total / 2.0)
                         .build());
             }
-            System.out.println("🍠 [춘식이 알림] 1학년 4반 중간고사 성적(수학·국어) 초기화 완료했슈!");
+            System.out.println("[초기화] 1학년 4반 중간고사 성적(수학, 국어) 초기화가 완료되었습니다.");
 
         } else {
-            System.out.println("🍠 [춘식이 알림] 2026학년도 학급 데이터가 이미 있어서 스킵합니더.");
+            System.out.println("[초기화] 2026학년도 학급 데이터가 이미 존재하여 초기화를 건너뜁니다.");
         }
     }
 }
