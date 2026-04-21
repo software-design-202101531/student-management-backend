@@ -1,7 +1,7 @@
 package com.school.studentmanagement.classroom.repository;
 
 import com.school.studentmanagement.classroom.entity.Classroom;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

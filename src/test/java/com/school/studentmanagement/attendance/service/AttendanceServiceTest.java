@@ -1,21 +1,22 @@
 package com.school.studentmanagement.attendance.service;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
-import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.attendance.dto.AttendanceSaveRequest;
 import com.school.studentmanagement.attendance.dto.AttendanceDailyResponse;
 import com.school.studentmanagement.attendance.dto.AttendanceMonthlyResponse;
 import com.school.studentmanagement.attendance.entity.Attendance;
 import com.school.studentmanagement.attendance.repository.AttendanceRepository;
-import com.school.studentmanagement.calendar.entity.AcademicCalendar;
-import com.school.studentmanagement.calendar.repository.AcademicCalendarRepository;
+import com.school.studentmanagement.attendance.entity.AcademicCalendar;
+import com.school.studentmanagement.attendance.repository.AcademicCalendarRepository;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
 import com.school.studentmanagement.global.enums.*;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.global.exception.BusinessException;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
-import com.school.studentmanagement.user.repository.TeacherRepository;
+import com.school.studentmanagement.teacher.repository.TeacherRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -24,7 +25,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -123,7 +123,7 @@ class AttendanceServiceTest {
 
             // When & Then
             assertThatThrownBy(() -> attendanceService.getMonthlyAttendance(CLASSROOM_ID, TEACHER_ID, 2026, 5))
-                    .isInstanceOf(AccessDeniedException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 반의 담임이 아닙니다");
         }
     }
@@ -200,7 +200,7 @@ class AttendanceServiceTest {
             // When & Then
             assertThatThrownBy(() -> attendanceService.saveDailyAttendance(
                     CLASSROOM_ID, TEACHER_ID, tomorrow, buildRequest(STUDENT_ID, AttendanceStatus.ABSENT, "감기")))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("출결은 미리 입력할 수 없습니다");
         }
 
@@ -284,7 +284,7 @@ class AttendanceServiceTest {
             // When & Then
             assertThatThrownBy(() -> attendanceService.saveDailyAttendance(
                     CLASSROOM_ID, TEACHER_ID, today, buildRequest(STUDENT_ID, AttendanceStatus.ABSENT, "감기")))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 반의 학생이 아닙니다");
         }
     }

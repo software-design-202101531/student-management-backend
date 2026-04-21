@@ -1,6 +1,6 @@
 package com.school.studentmanagement.global.config;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.EmploymentStatus;
 import com.school.studentmanagement.global.enums.ExamType;
@@ -10,10 +10,10 @@ import com.school.studentmanagement.grade.entity.StudentGrade;
 import com.school.studentmanagement.grade.entity.StudentSemesterStat;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.subject.entity.SubjectAssignment;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
-import com.school.studentmanagement.invitation.entity.ParentInvitation;
+import com.school.studentmanagement.parent.entity.ParentInvitation;
 import com.school.studentmanagement.global.enums.RelationType;
 import com.school.studentmanagement.global.enums.UserRole;
 import com.school.studentmanagement.global.enums.UserStatus;

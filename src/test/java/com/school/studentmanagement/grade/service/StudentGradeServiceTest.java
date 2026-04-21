@@ -1,10 +1,11 @@
 package com.school.studentmanagement.grade.service;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
-import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
 import com.school.studentmanagement.global.enums.*;
+import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.grade.dto.ClassroomGradeResponse;
 import com.school.studentmanagement.grade.dto.GradeListResponse;
 import com.school.studentmanagement.grade.dto.GradeSaveRequest;
@@ -18,8 +19,8 @@ import com.school.studentmanagement.grade.repository.StudentSemesterStatReposito
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.subject.entity.SubjectAssignment;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +30,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -186,8 +186,8 @@ class StudentGradeServiceTest {
             // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, buildSaveRequest(STUDENT_ID, 85)))
-                    .isInstanceOf(AccessDeniedException.class)
-                    .hasMessage("해당 수업에 대한 성적 입력 권한이 없습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("해당 수업에 대한 성적 입력 권한이 없습니다");
         }
 
         @Test
@@ -207,7 +207,7 @@ class StudentGradeServiceTest {
             // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("학급에 속하지 않는 학생");
         }
     }
@@ -284,8 +284,8 @@ class StudentGradeServiceTest {
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("성적 정보를 찾을 수 없습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("성적 정보를 찾을 수 없습니다");
         }
 
         @Test
@@ -303,8 +303,8 @@ class StudentGradeServiceTest {
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("성적 과목 정보가 일치하지 않습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("성적 과목 정보가 일치하지 않습니다");
         }
 
         @Test
@@ -321,8 +321,8 @@ class StudentGradeServiceTest {
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("해당 학생은 이 학급에 속하지 않습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("해당 학생은 이 학급에 속하지 않습니다");
         }
 
         @Test
@@ -341,8 +341,8 @@ class StudentGradeServiceTest {
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
-                    .isInstanceOf(AccessDeniedException.class)
-                    .hasMessage("해당 수업에 대한 성적 수정 권한이 없습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("해당 수업에 대한 성적 수정 권한이 없습니다");
         }
     }
 
@@ -409,8 +409,8 @@ class StudentGradeServiceTest {
             // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.getSubjectGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
-                    .isInstanceOf(AccessDeniedException.class)
-                    .hasMessage("해당 수업의 성적 조회 권한이 없습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("해당 수업의 성적 조회 권한이 없습니다");
         }
 
         @Test
@@ -425,8 +425,8 @@ class StudentGradeServiceTest {
             // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.getSubjectGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("해당 시험 정보를 찾을 수 없습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("해당 시험 정보를 찾을 수 없습니다");
         }
     }
 
@@ -513,8 +513,8 @@ class StudentGradeServiceTest {
             // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.getClassroomGrades(CLASSROOM_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
-                    .isInstanceOf(AccessDeniedException.class)
-                    .hasMessage("담임 교사만 전체 성적을 조회할 수 있습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("담임 교사만 전체 성적을 조회할 수 있습니다");
         }
 
         @Test
@@ -527,8 +527,8 @@ class StudentGradeServiceTest {
             // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.getClassroomGrades(CLASSROOM_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
-                    .isInstanceOf(AccessDeniedException.class)
-                    .hasMessage("담임 교사만 전체 성적을 조회할 수 있습니다.");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("담임 교사만 전체 성적을 조회할 수 있습니다");
         }
     }
 

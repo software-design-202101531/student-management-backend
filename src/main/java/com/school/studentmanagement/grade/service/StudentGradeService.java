@@ -1,8 +1,10 @@
 package com.school.studentmanagement.grade.service;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
-import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
+import com.school.studentmanagement.global.exception.BusinessException;
+import com.school.studentmanagement.global.exception.ErrorCode;
 import com.school.studentmanagement.grade.dto.ClassroomGradeResponse;
 import com.school.studentmanagement.grade.dto.GradeListResponse;
 import com.school.studentmanagement.grade.dto.GradeSaveRequest;
@@ -16,9 +18,8 @@ import com.school.studentmanagement.grade.repository.StudentSemesterStatReposito
 import com.school.studentmanagement.global.enums.ExamType;
 import com.school.studentmanagement.subject.entity.SubjectAssignment;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
-import com.school.studentmanagement.user.entity.Student;
+import com.school.studentmanagement.student.entity.Student;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,12 +44,10 @@ public class StudentGradeService {
 
     @Transactional
     public void saveGrades(Long classroomId, Long subjectId, Long teacherId, GradeSaveRequest request) {
-        // 1. 해당 교사가 이 학급·과목을 담당하는지 검증
         SubjectAssignment assignment = subjectAssignmentRepository
                 .findValidAssignment(teacherId, classroomId, subjectId, request.getAcademicYear(), request.getSemester())
-                .orElseThrow(() -> new AccessDeniedException("해당 수업에 대한 성적 입력 권한이 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED, "해당 수업에 대한 성적 입력 권한이 없습니다"));
 
-        // 2. 시험 정보 조회 또는 생성
         Exam exam = examRepository
                 .findByAcademicYearAndSemesterAndExamType(request.getAcademicYear(), request.getSemester(), request.getExamType())
                 .orElseGet(() -> examRepository.save(Exam.builder()
@@ -57,7 +56,6 @@ public class StudentGradeService {
                         .examType(request.getExamType())
                         .build()));
 
-        // 3. 학급 소속 학생 목록 로드 및 학생 ID 검증
         List<StudentAffiliation> affiliations = studentAffiliationRepository.findAllByClassroomId(classroomId);
         Map<Long, StudentAffiliation> affiliationByStudentId = affiliations.stream()
                 .collect(Collectors.toMap(a -> a.getStudent().getId(), a -> a));
@@ -68,18 +66,17 @@ public class StudentGradeService {
 
         requestedStudentIds.forEach(studentId -> {
             if (!affiliationByStudentId.containsKey(studentId)) {
-                throw new IllegalArgumentException("학급에 속하지 않는 학생입니다. studentId=" + studentId);
+                throw new BusinessException(ErrorCode.STUDENT_NOT_IN_CLASSROOM,
+                        "학급에 속하지 않는 학생입니다. studentId=" + studentId);
             }
         });
 
-        // 4. 기존 성적 맵 구성 (studentId → StudentGrade)
         List<Long> studentIds = List.copyOf(requestedStudentIds);
         Map<Long, StudentGrade> existingGradeByStudentId = studentGradeRepository
                 .findByExamIdAndSubjectIdAndStudentIds(exam.getId(), subjectId, studentIds)
                 .stream()
                 .collect(Collectors.toMap(sg -> sg.getStudent().getId(), sg -> sg));
 
-        // 5. 성적 저장 또는 수정
         request.getScores().forEach(score -> {
             StudentGrade existing = existingGradeByStudentId.get(score.getStudentId());
             if (existing != null) {
@@ -95,7 +92,6 @@ public class StudentGradeService {
             }
         });
 
-        // 6. 학기 통계 갱신
         studentIds.forEach(studentId ->
                 refreshSemesterStat(affiliationByStudentId.get(studentId).getStudent(),
                         request.getAcademicYear(), request.getSemester()));
@@ -105,28 +101,24 @@ public class StudentGradeService {
 
     @Transactional
     public void updateGrade(Long classroomId, Long subjectId, Long gradeId, Long teacherId, GradeUpdateRequest request) {
-        // 1. 성적 존재 여부 확인
         StudentGrade grade = studentGradeRepository.findById(gradeId)
-                .orElseThrow(() -> new IllegalArgumentException("성적 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.GRADE_NOT_FOUND));
 
-        // 2. 과목 일치 여부 확인
         if (!grade.getSubject().getId().equals(subjectId)) {
-            throw new IllegalArgumentException("성적 과목 정보가 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.GRADE_SUBJECT_MISMATCH);
         }
 
-        // 3. 해당 학생이 이 학급 소속인지 + 교사가 담당자인지 검증
         studentAffiliationRepository.findByStudentIdAndClassroomId(grade.getStudent().getId(), classroomId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 학생은 이 학급에 속하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_IN_CLASSROOM,
+                        "해당 학생은 이 학급에 속하지 않습니다"));
 
         subjectAssignmentRepository.findValidAssignment(
                         teacherId, classroomId, subjectId,
                         grade.getExam().getAcademicYear(), grade.getExam().getSemester())
-                .orElseThrow(() -> new AccessDeniedException("해당 수업에 대한 성적 수정 권한이 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED, "해당 수업에 대한 성적 수정 권한이 없습니다"));
 
-        // 4. 점수 수정
         grade.updateScore(request.getRawScore());
 
-        // 5. 학기 통계 갱신
         refreshSemesterStat(grade.getStudent(), grade.getExam().getAcademicYear(), grade.getExam().getSemester());
     }
 
@@ -134,26 +126,21 @@ public class StudentGradeService {
 
     public GradeListResponse getSubjectGrades(Long classroomId, Long subjectId, Long teacherId,
                                               Integer academicYear, Integer semester, ExamType examType) {
-        // 1. 담당 교사 권한 검증
         SubjectAssignment assignment = subjectAssignmentRepository
                 .findValidAssignment(teacherId, classroomId, subjectId, academicYear, semester)
-                .orElseThrow(() -> new AccessDeniedException("해당 수업의 성적 조회 권한이 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED, "해당 수업의 성적 조회 권한이 없습니다"));
 
-        // 2. 시험 정보 조회
         Exam exam = examRepository.findByAcademicYearAndSemesterAndExamType(academicYear, semester, examType)
-                .orElseThrow(() -> new IllegalArgumentException("해당 시험 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND));
 
-        // 3. 학급 학생 목록 조회
         List<StudentAffiliation> affiliations = studentAffiliationRepository.findAllByClassroomId(classroomId);
         List<Long> studentIds = affiliations.stream().map(a -> a.getStudent().getId()).toList();
 
-        // 4. 해당 시험·과목의 성적 맵 구성
         Map<Long, StudentGrade> gradeByStudentId = studentGradeRepository
                 .findByExamIdAndSubjectIdAndStudentIds(exam.getId(), subjectId, studentIds)
                 .stream()
                 .collect(Collectors.toMap(sg -> sg.getStudent().getId(), sg -> sg));
 
-        // 5. 응답 빌드 (미입력 학생은 gradeId, rawScore = null)
         List<GradeListResponse.StudentGradeDto> gradeDtos = affiliations.stream()
                 .map(affiliation -> {
                     Student student = affiliation.getStudent();
@@ -181,32 +168,26 @@ public class StudentGradeService {
 
     public ClassroomGradeResponse getClassroomGrades(Long classroomId, Long teacherId,
                                                      Integer academicYear, Integer semester, ExamType examType) {
-        // 1. 담임 교사 권한 검증
         classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(teacherId, academicYear, semester)
                 .filter(c -> c.getId().equals(classroomId))
-                .orElseThrow(() -> new AccessDeniedException("담임 교사만 전체 성적을 조회할 수 있습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ACCESS_DENIED, "담임 교사만 전체 성적을 조회할 수 있습니다"));
 
-        // 2. 시험 정보 조회
         Exam exam = examRepository.findByAcademicYearAndSemesterAndExamType(academicYear, semester, examType)
-                .orElseThrow(() -> new IllegalArgumentException("해당 시험 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND));
 
-        // 3. 학급 학생 목록 조회
         List<StudentAffiliation> affiliations = studentAffiliationRepository.findAllByClassroomId(classroomId);
         List<Long> studentIds = affiliations.stream().map(a -> a.getStudent().getId()).toList();
 
-        // 4. 해당 시험의 전 과목 성적 (학생별 그룹핑)
         Map<Long, List<StudentGrade>> gradesByStudentId = studentGradeRepository
                 .findByExamIdAndStudentIds(exam.getId(), studentIds)
                 .stream()
                 .collect(Collectors.groupingBy(sg -> sg.getStudent().getId()));
 
-        // 5. 학기 누적 통계 맵 구성
         Map<Long, StudentSemesterStat> statByStudentId = semesterStatRepository
                 .findByStudentIdsAndYearAndSemester(studentIds, academicYear, semester)
                 .stream()
                 .collect(Collectors.toMap(s -> s.getStudent().getId(), s -> s));
 
-        // 6. 응답 빌드
         List<ClassroomGradeResponse.StudentAllGradesDto> studentDtos = affiliations.stream()
                 .map(affiliation -> {
                     Student student = affiliation.getStudent();

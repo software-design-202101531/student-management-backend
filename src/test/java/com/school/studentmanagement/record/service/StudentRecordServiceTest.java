@@ -1,7 +1,7 @@
 package com.school.studentmanagement.record.service;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
-import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.*;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
@@ -9,10 +9,10 @@ import com.school.studentmanagement.record.dto.BehaviorRecordRequest;
 import com.school.studentmanagement.record.dto.BehaviorRecordResponse;
 import com.school.studentmanagement.record.entity.StudentRecord;
 import com.school.studentmanagement.record.repository.StudentRecordRepository;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
-import com.school.studentmanagement.user.repository.TeacherRepository;
+import com.school.studentmanagement.teacher.repository.TeacherRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -21,7 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
+import com.school.studentmanagement.global.exception.BusinessException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import org.springframework.util.ReflectionUtils;
@@ -146,7 +146,7 @@ class StudentRecordServiceTest {
 
             // When & Then
             assertThatThrownBy(() -> studentRecordService.getBehaviorRecord(STUDENT_ID, TEACHER_ID))
-                    .isInstanceOf(AccessDeniedException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("담당 학생이 아니기에 접근할 수 없습니다");
         }
     }
@@ -209,7 +209,7 @@ class StudentRecordServiceTest {
             // When & Then
             assertThatThrownBy(() -> studentRecordService.saveBehaviorRecord(
                     STUDENT_ID, TEACHER_ID, buildRequest("내용")))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 학년도의 행특 작성 및 수정 기간은 마감되었습니다");
         }
 
@@ -234,7 +234,7 @@ class StudentRecordServiceTest {
             // When & Then
             assertThatThrownBy(() -> studentRecordService.saveBehaviorRecord(
                     STUDENT_ID, TEACHER_ID, buildRequest("내용")))
-                    .isInstanceOf(AccessDeniedException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("담당 학생이 아니기에 접근할 수 없습니다");
         }
     }

@@ -1,5 +1,6 @@
 package com.school.studentmanagement.record.controller;
 
+import com.school.studentmanagement.global.response.ApiResponse;
 import com.school.studentmanagement.global.security.dto.CustomUserDetails;
 import com.school.studentmanagement.record.dto.BehaviorRecordRequest;
 import com.school.studentmanagement.record.dto.BehaviorRecordResponse;
@@ -19,28 +20,24 @@ public class StudentRecordController {
 
     // 상세 조회 API
     @GetMapping
-    public ResponseEntity<BehaviorRecordResponse> getBehaviorRecord(
+    public ResponseEntity<ApiResponse<BehaviorRecordResponse>> getBehaviorRecord(
             @PathVariable Long studentId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails
-            ) {
+    ) {
         Long teacherId = customUserDetails.getUserId();
-
         BehaviorRecordResponse response = studentRecordService.getBehaviorRecord(studentId, teacherId);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     // 행특 저장 및 수정 API
     @PostMapping
-    public ResponseEntity<Void> saveBehaviorRecord(
+    public ResponseEntity<ApiResponse<Void>> saveBehaviorRecord(
             @PathVariable Long studentId,
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
-            @Valid @RequestBody BehaviorRecordRequest request // 빈칸이 존재한다면 400 Bad Request 에러 던짐
+            @Valid @RequestBody BehaviorRecordRequest request
     ) {
         Long teacherId = customUserDetails.getUserId();
-
         studentRecordService.saveBehaviorRecord(studentId, teacherId, request);
-
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ApiResponse.ok());
     }
 }

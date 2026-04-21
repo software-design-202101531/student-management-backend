@@ -1,6 +1,6 @@
 package com.school.studentmanagement.grade.entity;
 
-import com.school.studentmanagement.user.entity.Student;
+import com.school.studentmanagement.student.entity.Student;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

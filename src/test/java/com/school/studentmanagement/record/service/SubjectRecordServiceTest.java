@@ -1,19 +1,19 @@
 package com.school.studentmanagement.record.service;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
-import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.global.enums.*;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.record.entity.StudentRecord;
 import com.school.studentmanagement.record.repository.StudentRecordRepository;
-import com.school.studentmanagement.subject.dto.SubjectRecordRequest;
-import com.school.studentmanagement.subject.dto.SubjectRecordResponse;
+import com.school.studentmanagement.record.dto.SubjectRecordRequest;
+import com.school.studentmanagement.record.dto.SubjectRecordResponse;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.subject.entity.SubjectAssignment;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
+import com.school.studentmanagement.global.exception.BusinessException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import org.springframework.util.ReflectionUtils;
@@ -153,7 +153,7 @@ class SubjectRecordServiceTest {
             // When & Then
             assertThatThrownBy(() -> subjectRecordService.getSubjectRecord(
                     CLASSROOM_ID, STUDENT_ID, SUBJECT_ID, TEACHER_ID))
-                    .isInstanceOf(AccessDeniedException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 반의 과목 담당 교사가 아닙니다");
         }
 
@@ -175,7 +175,7 @@ class SubjectRecordServiceTest {
             // When & Then
             assertThatThrownBy(() -> subjectRecordService.getSubjectRecord(
                     CLASSROOM_ID, STUDENT_ID, SUBJECT_ID, TEACHER_ID))
-                    .isInstanceOf(AccessDeniedException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 학생은 해당 반의 소속이 아닙니다");
         }
     }
@@ -237,7 +237,7 @@ class SubjectRecordServiceTest {
             // When & Then
             assertThatThrownBy(() -> subjectRecordService.saveSubjectRecord(
                     CLASSROOM_ID, STUDENT_ID, SUBJECT_ID, TEACHER_ID, buildRequest("내용")))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 학년도의 과세특 작성 및 수정 기간은 마감되었습니다");
         }
     }

@@ -1,8 +1,8 @@
 package com.school.studentmanagement.attendance.entity;
 
 import com.school.studentmanagement.global.enums.AttendanceStatus;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

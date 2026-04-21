@@ -1,7 +1,7 @@
 package com.school.studentmanagement.classroom.entity;
 
 
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

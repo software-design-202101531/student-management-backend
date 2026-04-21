@@ -1,15 +1,16 @@
 package com.school.studentmanagement.classroom.service;
 
-import com.school.studentmanagement.StudentAffiliation.entity.StudentAffiliation;
-import com.school.studentmanagement.StudentAffiliation.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.classroom.dto.StudentListResponse;
 import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
 import com.school.studentmanagement.global.enums.*;
+import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
-import com.school.studentmanagement.user.entity.Student;
-import com.school.studentmanagement.user.entity.Teacher;
+import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -101,8 +101,8 @@ class ClassroomStudentServiceTest {
 
             // When & Then
             assertThatThrownBy(() -> classroomStudentService.getMyHomeroomStudents(TEACHER_ID))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("2026학년도1학기에는 담임을 담당한 반이 없습니다");
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("2026학년도 1학기에는 담임을 담당한 반이 없습니다");
         }
     }
 
@@ -141,7 +141,7 @@ class ClassroomStudentServiceTest {
 
             // When & Then
             assertThatThrownBy(() -> classroomStudentService.getStudentsInClassroom(CLASSROOM_ID, TEACHER_ID))
-                    .isInstanceOf(AccessDeniedException.class)
+                    .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 반 수업의 담당 교사가 아닙니다");
         }
     }
