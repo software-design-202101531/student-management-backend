@@ -43,3 +43,9 @@ out/
 
 ### db data ###
 /db
+
+### redis data ###
+/redis
+
+### macOS ###
+.DS_Store
