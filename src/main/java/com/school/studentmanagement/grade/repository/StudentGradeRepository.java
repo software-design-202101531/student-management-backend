@@ -56,4 +56,17 @@ public interface StudentGradeRepository extends JpaRepository<StudentGrade, Long
             @Param("academicYear") Integer academicYear,
             @Param("semester") Integer semester
     );
+
+    // 학생 본인 성적 조회: 특정 학기의 전 시험·과목 성적
+    @Query("SELECT sg FROM StudentGrade sg " +
+            "JOIN FETCH sg.subject " +
+            "JOIN FETCH sg.exam " +
+            "WHERE sg.student.id = :studentId " +
+            "AND sg.exam.academicYear = :academicYear " +
+            "AND sg.exam.semester = :semester")
+    List<StudentGrade> findByStudentIdAndAcademicYearAndSemester(
+            @Param("studentId") Long studentId,
+            @Param("academicYear") Integer academicYear,
+            @Param("semester") Integer semester
+    );
 }
