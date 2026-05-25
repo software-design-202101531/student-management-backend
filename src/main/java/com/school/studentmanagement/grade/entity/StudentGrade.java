@@ -1,5 +1,6 @@
 package com.school.studentmanagement.grade.entity;
 
+import com.school.studentmanagement.global.enums.ExamAttendanceStatus;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.student.entity.Student;
 import jakarta.persistence.*;
@@ -38,18 +39,41 @@ public class StudentGrade {
     @JoinColumn(name = "subject_id", nullable = false)
     private Subject subject;
 
-    @Column(nullable = false)
+    // ABSENT 시 null. PRESENT/CHEATED 시 점수.
+    @Column(name = "raw_score")
     private Integer rawScore;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attendance_status", nullable = false, length = 10)
+    private ExamAttendanceStatus attendanceStatus;
+
     @Builder
-    public StudentGrade(Student student, Exam exam, Subject subject, Integer rawScore) {
+    public StudentGrade(Student student, Exam exam, Subject subject,
+                        Integer rawScore, ExamAttendanceStatus attendanceStatus) {
         this.student = student;
         this.exam = exam;
         this.subject = subject;
-        this.rawScore = rawScore;
+        ExamAttendanceStatus status = attendanceStatus != null ? attendanceStatus : ExamAttendanceStatus.PRESENT;
+        this.attendanceStatus = status;
+        this.rawScore = normalizeScore(rawScore, status);
     }
 
+    public void update(Integer rawScore, ExamAttendanceStatus status) {
+        ExamAttendanceStatus s = status != null ? status : ExamAttendanceStatus.PRESENT;
+        this.attendanceStatus = s;
+        this.rawScore = normalizeScore(rawScore, s);
+    }
+
+    // 단순 점수 변경 (status 유지) — 기존 호출처 호환용
     public void updateScore(Integer rawScore) {
-        this.rawScore = rawScore;
+        update(rawScore, this.attendanceStatus);
+    }
+
+    private static Integer normalizeScore(Integer raw, ExamAttendanceStatus status) {
+        return switch (status) {
+            case ABSENT -> null;
+            case CHEATED, NOT_SUBMITTED -> 0;
+            case PRESENT -> raw;
+        };
     }
 }

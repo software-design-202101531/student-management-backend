@@ -1,19 +1,15 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: school_mysql
+  postgres:
+    image: postgres:16
+    container_name: school_postgres
     ports:
-      - "3306:3306"
+      - "5432:5432"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: school_db
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
+      POSTGRES_DB: school_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./db/data:/var/lib/mysql
+      - ./db/data:/var/lib/postgresql/data
 
   redis:
     image: redis:alpine
@@ -22,4 +18,3 @@ services:
       - "6380:6379"
     volumes:
       - ./redis/data:/data
-

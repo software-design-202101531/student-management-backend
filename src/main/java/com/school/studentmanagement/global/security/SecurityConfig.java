@@ -68,6 +68,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/student/me/**").hasRole("STUDENT")
                         .requestMatchers("/api/parent/me/**").hasRole("PARENT")
+                        // 피드백 작성/수정/발행은 교사 전용 (목록 조회 GET은 인증된 모든 권한 허용 후 서비스에서 분기)
+                        .requestMatchers(HttpMethod.POST, "/api/feedbacks").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PUT, "/api/feedbacks/*").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/feedbacks/*/publish").hasRole("TEACHER")
+                        // 상담 내역: 작성은 교사 전용, 조회/공개범위 변경은 교사·관리자 (세부 권한은 서비스에서 검증)
+                        .requestMatchers(HttpMethod.POST, "/api/consultations").hasRole("TEACHER")
+                        .requestMatchers(HttpMethod.GET, "/api/students/*/consultations").hasAnyRole("TEACHER", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/consultations/*/visibility").hasAnyRole("TEACHER", "ADMIN")
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",

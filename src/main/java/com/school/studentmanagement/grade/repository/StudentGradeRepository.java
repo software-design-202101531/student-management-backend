@@ -35,38 +35,114 @@ public interface StudentGradeRepository extends JpaRepository<StudentGrade, Long
 
     Optional<StudentGrade> findByStudentIdAndExamIdAndSubjectId(Long studentId, Long examId, Long subjectId);
 
-    // 학기 통계 계산용: 해당 학기 전체 성적 합산
-    @Query("SELECT COALESCE(SUM(sg.rawScore), 0) FROM StudentGrade sg " +
+    // 학기 통계용: 한 학생의 한 학기 과목별 가중평균 점수 (0~100 환산)
+    //   ABSENT(rawScore=null) 행은 자동으로 제외 — 가중평균 분모/분자에서 빠짐.
+    //   CHEATED(rawScore=0)은 0점으로 평균에 포함.
+    @Query("SELECT sg.subject.id AS subjectId, " +
+            "SUM(sg.rawScore * 100.0 / sg.exam.maxScore * sg.exam.weight) / SUM(sg.exam.weight) AS subjectScore " +
+            "FROM StudentGrade sg " +
             "WHERE sg.student.id = :studentId " +
             "AND sg.exam.academicYear = :academicYear " +
-            "AND sg.exam.semester = :semester")
-    Integer sumTotalScoreByStudentAndSemester(
+            "AND sg.exam.semester = :semester " +
+            "AND sg.exam.weight > 0 " +
+            "AND sg.rawScore IS NOT NULL " +
+            "GROUP BY sg.subject.id")
+    List<SubjectScoreAggregation> aggregateSubjectScoresByStudentAndSemester(
             @Param("studentId") Long studentId,
             @Param("academicYear") Integer academicYear,
             @Param("semester") Integer semester
     );
 
-    // 학기 통계 계산용: 해당 학기 성적 개수
-    @Query("SELECT COUNT(sg) FROM StudentGrade sg " +
-            "WHERE sg.student.id = :studentId " +
+    // 레이더·학급 평균용: 학급 학생들의 (학생, 과목)별 학기 가중평균
+    @Query("SELECT sg.student.id AS studentId, sg.subject.id AS subjectId, " +
+            "SUM(sg.rawScore * 100.0 / sg.exam.maxScore * sg.exam.weight) / SUM(sg.exam.weight) AS subjectScore " +
+            "FROM StudentGrade sg " +
+            "WHERE sg.student.id IN :studentIds " +
             "AND sg.exam.academicYear = :academicYear " +
-            "AND sg.exam.semester = :semester")
-    Long countByStudentAndSemester(
-            @Param("studentId") Long studentId,
+            "AND sg.exam.semester = :semester " +
+            "AND sg.exam.weight > 0 " +
+            "AND sg.rawScore IS NOT NULL " +
+            "GROUP BY sg.student.id, sg.subject.id")
+    List<ClassSubjectScoreAggregation> aggregateSubjectScoresByStudentIdsAndSemester(
+            @Param("studentIds") List<Long> studentIds,
             @Param("academicYear") Integer academicYear,
             @Param("semester") Integer semester
     );
 
-    // 학생 본인 성적 조회: 특정 학기의 전 시험·과목 성적
+    // 시계열용: (subject, year, semester)별 학기점수
+    @Query("SELECT sg.subject.id AS subjectId, " +
+            "sg.exam.academicYear AS academicYear, " +
+            "sg.exam.semester AS semester, " +
+            "SUM(sg.rawScore * 100.0 / sg.exam.maxScore * sg.exam.weight) / SUM(sg.exam.weight) AS semesterScore " +
+            "FROM StudentGrade sg " +
+            "WHERE sg.student.id = :studentId " +
+            "AND sg.exam.weight > 0 " +
+            "AND sg.rawScore IS NOT NULL " +
+            "AND (sg.exam.academicYear * 10 + sg.exam.semester) BETWEEN :fromKey AND :toKey " +
+            "GROUP BY sg.subject.id, sg.exam.academicYear, sg.exam.semester " +
+            "ORDER BY sg.exam.academicYear ASC, sg.exam.semester ASC")
+    List<SubjectSemesterTrendPoint> aggregateSubjectTrendByStudentAndRange(
+            @Param("studentId") Long studentId,
+            @Param("fromKey") Integer fromKey,
+            @Param("toKey") Integer toKey
+    );
+
+    // 학급 통계용: ABSENT 제외한 점수만
+    @Query("SELECT sg.rawScore FROM StudentGrade sg " +
+            "WHERE sg.exam.id = :examId " +
+            "AND sg.subject.id = :subjectId " +
+            "AND sg.student.id IN :studentIds " +
+            "AND sg.rawScore IS NOT NULL")
+    List<Integer> findRawScoresByExamIdAndSubjectIdAndStudentIds(
+            @Param("examId") Long examId,
+            @Param("subjectId") Long subjectId,
+            @Param("studentIds") List<Long> studentIds
+    );
+
+    // 학생 본인 성적 조회: published=true인 시험만
     @Query("SELECT sg FROM StudentGrade sg " +
             "JOIN FETCH sg.subject " +
-            "JOIN FETCH sg.exam " +
+            "JOIN FETCH sg.exam e " +
             "WHERE sg.student.id = :studentId " +
-            "AND sg.exam.academicYear = :academicYear " +
-            "AND sg.exam.semester = :semester")
+            "AND e.academicYear = :academicYear " +
+            "AND e.semester = :semester " +
+            "AND e.published = true " +
+            "ORDER BY e.examDate ASC, e.id ASC")
+    List<StudentGrade> findPublishedByStudentIdAndAcademicYearAndSemester(
+            @Param("studentId") Long studentId,
+            @Param("academicYear") Integer academicYear,
+            @Param("semester") Integer semester
+    );
+
+    // 교사 종합 뷰용 (published 무관)
+    @Query("SELECT sg FROM StudentGrade sg " +
+            "JOIN FETCH sg.subject " +
+            "JOIN FETCH sg.exam e " +
+            "WHERE sg.student.id = :studentId " +
+            "AND e.academicYear = :academicYear " +
+            "AND e.semester = :semester " +
+            "ORDER BY e.examDate ASC, e.id ASC")
     List<StudentGrade> findByStudentIdAndAcademicYearAndSemester(
             @Param("studentId") Long studentId,
             @Param("academicYear") Integer academicYear,
             @Param("semester") Integer semester
     );
+
+    // 학기 마감용: 학기의 모든 (학생, 시험, 과목) 조합 식별자만
+    @Query("SELECT sg.student.id AS studentId, " +
+            "sg.exam.id AS examId, " +
+            "sg.subject.id AS subjectId " +
+            "FROM StudentGrade sg " +
+            "WHERE sg.exam.academicYear = :academicYear " +
+            "AND sg.exam.semester = :semester")
+    List<ExistingGradeKey> findExistingKeysByAcademicYearAndSemester(
+            @Param("academicYear") Integer academicYear,
+            @Param("semester") Integer semester
+    );
+
+    interface ExistingGradeKey {
+        Long getStudentId();
+        Long getExamId();
+        Long getSubjectId();
+    }
 }

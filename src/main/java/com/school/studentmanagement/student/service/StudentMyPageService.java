@@ -1,8 +1,8 @@
 package com.school.studentmanagement.student.service;
 
-import com.school.studentmanagement.global.enums.ExamType;
 import com.school.studentmanagement.global.enums.RecordCategory;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
+import com.school.studentmanagement.grade.entity.Exam;
 import com.school.studentmanagement.grade.entity.StudentGrade;
 import com.school.studentmanagement.grade.entity.StudentSemesterStat;
 import com.school.studentmanagement.grade.repository.StudentGradeRepository;
@@ -15,21 +15,23 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StudentMyPageService {
+    // 학생 본인의 성적과 생활기록부를 조회
 
     private final StudentGradeRepository studentGradeRepository;
     private final StudentSemesterStatRepository semesterStatRepository;
     private final StudentRecordRepository studentRecordRepository;
     private final AcademicCalendarUtil academicCalendarUtil;
 
+    // 성적 조회 메서드
     public StudentMyGradeResponse getMyGrades(Long studentId, Integer academicYear, Integer semester) {
         int year = academicYear != null ? academicYear : academicCalendarUtil.getCurrentAcademicYear();
         int sem = semester != null ? semester : academicCalendarUtil.getCurrentSemester();
@@ -38,34 +40,43 @@ public class StudentMyPageService {
                 .findByStudentIdAndAcademicYearAndSemester(studentId, year, sem)
                 .orElse(null);
 
+        // published=true인 시험만, 시험일 오름차순
         List<StudentGrade> grades = studentGradeRepository
-                .findByStudentIdAndAcademicYearAndSemester(studentId, year, sem);
+                .findPublishedByStudentIdAndAcademicYearAndSemester(studentId, year, sem);
 
-        Map<ExamType, List<StudentMyGradeResponse.SubjectScoreDto>> byExamType = grades.stream()
-                .collect(Collectors.groupingBy(
-                        g -> g.getExam().getExamType(),
-                        Collectors.mapping(
-                                g -> StudentMyGradeResponse.SubjectScoreDto.builder()
-                                        .subjectName(g.getSubject().getName())
-                                        .rawScore(g.getRawScore())
-                                        .build(),
-                                Collectors.toList()
-                        )
-                ));
+        Map<Long, List<StudentGrade>> byExamId = new LinkedHashMap<>();
+        for (StudentGrade g : grades) {
+            byExamId.computeIfAbsent(g.getExam().getId(), k -> new ArrayList<>()).add(g);
+        }
 
-        List<StudentMyGradeResponse.ExamGradeDto> examGrades = byExamType.entrySet().stream()
-                .sorted(Comparator.comparing(e -> e.getKey().name()))
-                .map(e -> StudentMyGradeResponse.ExamGradeDto.builder()
-                        .examType(e.getKey())
-                        .subjects(e.getValue())
-                        .build())
+        List<StudentMyGradeResponse.ExamGradeDto> examGrades = byExamId.values().stream()
+                .map(list -> {
+                    Exam exam = list.get(0).getExam();
+                    List<StudentMyGradeResponse.SubjectScoreDto> subjects = list.stream()
+                            .map(g -> StudentMyGradeResponse.SubjectScoreDto.builder()
+                                    .subjectName(g.getSubject().getName())
+                                    .rawScore(g.getRawScore())
+                                    .attendanceStatus(g.getAttendanceStatus())
+                                    .build())
+                            .toList();
+                    return StudentMyGradeResponse.ExamGradeDto.builder()
+                            .examId(exam.getId())
+                            .examType(exam.getExamType())
+                            .examName(exam.getName())
+                            .examDate(exam.getExamDate())
+                            .maxScore(exam.getMaxScore())
+                            .coverage(exam.getCoverage())
+                            .subjects(subjects)
+                            .build();
+                })
                 .toList();
 
         return StudentMyGradeResponse.builder()
                 .academicYear(year)
                 .semester(sem)
-                .totalScore(stat != null ? stat.getTotalScore() : 0)
+                .totalScore(stat != null ? stat.getTotalScore() : 0.0)
                 .averageScore(stat != null ? stat.getAverageScore() : 0.0)
+                .gradeLevel(stat != null ? stat.getGradeLevel() : null)
                 .examGrades(examGrades)
                 .build();
     }

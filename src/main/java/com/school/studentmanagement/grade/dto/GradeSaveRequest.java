@@ -1,7 +1,6 @@
 package com.school.studentmanagement.grade.dto;
 
-import com.school.studentmanagement.global.enums.ExamType;
-import jakarta.validation.constraints.Max;
+import com.school.studentmanagement.global.enums.ExamAttendanceStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -17,22 +16,14 @@ import java.util.List;
 public class GradeSaveRequest {
 
     @NotNull
-    private Integer academicYear;
-
-    @NotNull
-    private Integer semester;
-
-    @NotNull
-    private ExamType examType;
+    private Long examId;
 
     @NotEmpty
     private List<StudentScoreDto> scores;
 
     @Builder
-    public GradeSaveRequest(Integer academicYear, Integer semester, ExamType examType, List<StudentScoreDto> scores) {
-        this.academicYear = academicYear;
-        this.semester = semester;
-        this.examType = examType;
+    public GradeSaveRequest(Long examId, List<StudentScoreDto> scores) {
+        this.examId = examId;
         this.scores = scores;
     }
 
@@ -43,14 +34,18 @@ public class GradeSaveRequest {
         @NotNull
         private Long studentId;
 
-        @NotNull
-        @Min(0) @Max(100)
+        // PRESENT면 필수, ABSENT/CHEATED면 무시 (서비스에서 정규화)
+        @Min(0)
         private Integer rawScore;
 
+        // 미지정 시 PRESENT
+        private ExamAttendanceStatus attendanceStatus;
+
         @Builder
-        public StudentScoreDto(Long studentId, Integer rawScore) {
+        public StudentScoreDto(Long studentId, Integer rawScore, ExamAttendanceStatus attendanceStatus) {
             this.studentId = studentId;
             this.rawScore = rawScore;
+            this.attendanceStatus = attendanceStatus;
         }
     }
 }

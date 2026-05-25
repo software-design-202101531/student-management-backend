@@ -49,4 +49,18 @@ public interface StudentAffiliationRepository extends JpaRepository<StudentAffil
     );
 
     Optional<StudentAffiliation> findByStudentIdAndClassroomId(Long studentId, Long classroomId);
+
+    // 학년 단위 석차용: 같은 학년의 모든 학생 (반 번호, 출석 번호 순)
+    @Query("SELECT sa FROM StudentAffiliation sa " +
+            "JOIN FETCH sa.student s JOIN FETCH s.user " +
+            "JOIN FETCH sa.classroom c " +
+            "WHERE c.academicYear = :year " +
+            "AND c.semester = :semester " +
+            "AND c.grade = :grade " +
+            "ORDER BY c.classNum ASC, sa.studentNum ASC")
+    List<StudentAffiliation> findAllByYearAndSemesterAndGrade(
+            @Param("year") Integer year,
+            @Param("semester") Integer semester,
+            @Param("grade") Integer grade
+    );
 }

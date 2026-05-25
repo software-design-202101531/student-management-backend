@@ -4,8 +4,10 @@ import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.classroom.entity.StudentAffiliation;
 import com.school.studentmanagement.global.enums.*;
 import com.school.studentmanagement.grade.entity.Exam;
+import com.school.studentmanagement.grade.entity.GradePolicy;
 import com.school.studentmanagement.grade.entity.StudentGrade;
 import com.school.studentmanagement.grade.entity.StudentSemesterStat;
+import java.time.LocalDate;
 import com.school.studentmanagement.parent.entity.Parent;
 import com.school.studentmanagement.parent.entity.ParentInvitation;
 import com.school.studentmanagement.parent.entity.ParentStudentMapping;
@@ -54,6 +56,19 @@ public class InitDataConfig implements CommandLineRunner {
                     .build();
             em.persist(adminUser);
             System.out.println("[초기화] 최고 관리자 계정이 생성되었습니다.");
+        }
+
+        // ==========================================
+        // 0-1. 등급 산정 정책 (5단계 성취평가, 기본값)
+        // ==========================================
+        Long policyCount = em.createQuery("SELECT count(p) FROM GradePolicy p", Long.class).getSingleResult();
+        if (policyCount == 0) {
+            em.persist(GradePolicy.builder()
+                    .name("5단계 성취평가 (기본)")
+                    .active(true)
+                    .aMinScore(90.0).bMinScore(80.0).cMinScore(70.0).dMinScore(60.0)
+                    .build());
+            System.out.println("[초기화] 기본 등급 산정 정책(5단계 성취평가, 90/80/70/60)이 생성되었습니다.");
         }
 
         // ==========================================
@@ -186,7 +201,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .role(UserRole.STUDENT).gender(i % 2 == 0 ? Gender.FEMALE : Gender.MALE)
                     .status(UserStatus.PENDING).build();
             em.persist(sUser);
-            Student s = Student.builder().user(sUser).enrollmentYear(2026).build();
+            Student s = Student.builder().user(sUser).homeroomTeacher(teacher3).enrollmentYear(2026).build();
             em.persist(s);
             em.persist(StudentAffiliation.builder().student(s).classroom(class4).studentNum(i).build());
             class4Students.add(s);
@@ -199,7 +214,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .role(UserRole.STUDENT).gender(i % 2 == 0 ? Gender.FEMALE : Gender.MALE)
                     .status(UserStatus.PENDING).build();
             em.persist(sUser);
-            Student s = Student.builder().user(sUser).enrollmentYear(2026).build();
+            Student s = Student.builder().user(sUser).homeroomTeacher(teacher2).enrollmentYear(2026).build();
             em.persist(s);
             em.persist(StudentAffiliation.builder().student(s).classroom(class2).studentNum(i).build());
         }
@@ -227,7 +242,7 @@ public class InitDataConfig implements CommandLineRunner {
                     .role(UserRole.STUDENT).status(UserStatus.ACTIVE)
                     .build();
             em.persist(sUser);
-            Student s = Student.builder().user(sUser).enrollmentYear(2026).build();
+            Student s = Student.builder().user(sUser).homeroomTeacher(teacher4).enrollmentYear(2026).build();
             em.persist(s);
             em.persist(StudentAffiliation.builder().student(s).classroom(class5).studentNum(i + 1).build());
             class5Students.add(s);
@@ -283,7 +298,13 @@ public class InitDataConfig implements CommandLineRunner {
         // ==========================================
         // 7. 4반 중간고사 성적 (기존)
         // ==========================================
-        Exam midterm2026 = Exam.builder().academicYear(2026).semester(1).examType(ExamType.MIDTERM).build();
+        Exam midterm2026 = Exam.builder()
+                .academicYear(2026).semester(1).examType(ExamType.MIDTERM)
+                .name("1학기 중간고사").maxScore(100).weight(0.5)
+                .examDate(LocalDate.of(2026, 4, 25))
+                .coverage("3월 ~ 4월 진도 전 범위")
+                .published(true)
+                .build();
         em.persist(midterm2026);
 
         int[] math4Scores = {85, 92, 78, 65, 95, 88, 73, 60, 91, 84, 77, 69, 96, 82, 71, 87, 63, 93, 79, 88};
@@ -293,8 +314,17 @@ public class InitDataConfig implements CommandLineRunner {
             Student s = class4Students.get(i);
             em.persist(StudentGrade.builder().student(s).exam(midterm2026).subject(mathSubject).rawScore(math4Scores[i]).build());
             em.persist(StudentGrade.builder().student(s).exam(midterm2026).subject(korSubject).rawScore(kor4Scores[i]).build());
-            int total = math4Scores[i] + kor4Scores[i];
-            em.persist(StudentSemesterStat.builder().student(s).academicYear(2026).semester(1).totalScore(total).averageScore(total / 2.0).build());
+
+            // 4반: 중간만 있으므로 과목 학기점수 = rawScore (가중평균 분모/분자가 동일 weight)
+            double mathSemester = math4Scores[i];
+            double korSemester  = kor4Scores[i];
+            double total   = mathSemester + korSemester;
+            double average = total / 2.0;
+            em.persist(StudentSemesterStat.builder()
+                    .student(s).academicYear(2026).semester(1)
+                    .totalScore(total).averageScore(average)
+                    .gradeLevel(GradeLevel.from(average))
+                    .build());
         }
         System.out.println("[초기화] 1학년 4반 중간고사 성적(수학, 국어) 초기화가 완료되었습니다.");
 
@@ -320,7 +350,13 @@ public class InitDataConfig implements CommandLineRunner {
         // ==========================================
         // 9. 5반 기말고사 성적 (수학·국어·영어)
         // ==========================================
-        Exam final2026 = Exam.builder().academicYear(2026).semester(1).examType(ExamType.FINAL).build();
+        Exam final2026 = Exam.builder()
+                .academicYear(2026).semester(1).examType(ExamType.FINAL)
+                .name("1학기 기말고사").maxScore(100).weight(0.5)
+                .examDate(LocalDate.of(2026, 6, 27))
+                .coverage("5월 ~ 6월 진도 전 범위")
+                .published(true)
+                .build();
         em.persist(final2026);
 
         int[][] fin5Scores = {
@@ -340,15 +376,20 @@ public class InitDataConfig implements CommandLineRunner {
         System.out.println("[초기화] 1학년 5반 중간·기말고사 성적(수학·국어·영어) 생성 완료.");
 
         // ==========================================
-        // 10. 5반 학기 통계 (중간 + 기말 합산)
+        // 10. 5반 학기 통계 (가중평균: 중간 0.5 + 기말 0.5)
         // ==========================================
+        // 과목 학기점수 = (mid + fin) / 2  (가중치 합 1.0, 만점 100 동일)
         for (int i = 0; i < class5Students.size(); i++) {
             Student s = class5Students.get(i);
-            int total = mid5Scores[i][0] + mid5Scores[i][1] + mid5Scores[i][2]
-                    + fin5Scores[i][0] + fin5Scores[i][1] + fin5Scores[i][2];
+            double mathSemester = (mid5Scores[i][0] + fin5Scores[i][0]) / 2.0;
+            double korSemester  = (mid5Scores[i][1] + fin5Scores[i][1]) / 2.0;
+            double engSemester  = (mid5Scores[i][2] + fin5Scores[i][2]) / 2.0;
+            double total   = mathSemester + korSemester + engSemester;
+            double average = total / 3.0;
             em.persist(StudentSemesterStat.builder()
                     .student(s).academicYear(2026).semester(1)
-                    .totalScore(total).averageScore(total / 6.0)
+                    .totalScore(total).averageScore(average)
+                    .gradeLevel(GradeLevel.from(average))
                     .build());
         }
         System.out.println("[초기화] 1학년 5반 학기 통계(StudentSemesterStat) 생성 완료.");

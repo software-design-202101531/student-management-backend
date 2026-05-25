@@ -34,12 +34,26 @@ public enum ErrorCode {
     GRADE_NOT_FOUND(404, "GRADE_NOT_FOUND", "성적 정보를 찾을 수 없습니다"),
     EXAM_NOT_FOUND(404, "EXAM_NOT_FOUND", "해당 시험 정보를 찾을 수 없습니다"),
     GRADE_SUBJECT_MISMATCH(400, "GRADE_SUBJECT_MISMATCH", "성적 과목 정보가 일치하지 않습니다"),
+    EXAM_NAME_DUPLICATED(409, "EXAM_NAME_DUPLICATED", "같은 학기에 동일한 이름의 시험이 이미 존재합니다"),
+    EXAM_ALREADY_PUBLISHED(409, "EXAM_ALREADY_PUBLISHED", "이미 공개된 시험입니다"),
+    EXAM_NOT_PUBLISHED(403, "EXAM_NOT_PUBLISHED", "아직 공개되지 않은 시험 정보입니다"),
+    EXAM_SCORE_OUT_OF_RANGE(400, "EXAM_SCORE_OUT_OF_RANGE", "허용된 점수 범위를 벗어났습니다"),
+    SEMESTER_ALREADY_CLOSED(409, "SEMESTER_ALREADY_CLOSED", "이미 마감된 학기입니다"),
+    SEMESTER_NOT_CLOSED(409, "SEMESTER_NOT_CLOSED", "마감되지 않은 학기입니다"),
+    SEMESTER_CLOSED(403, "SEMESTER_CLOSED", "마감된 학기는 수정할 수 없습니다"),
 
     // 출결
     ATTENDANCE_FUTURE_DATE(400, "ATTENDANCE_FUTURE_DATE", "출결은 미리 입력할 수 없습니다"),
 
     // 기록 (행특, 과세특)
     RECORD_DEADLINE_EXCEEDED(400, "RECORD_DEADLINE_EXCEEDED", "해당 학년도의 기록 작성 및 수정 기간은 마감되었습니다"),
+
+    // 피드백
+    FEEDBACK_NOT_FOUND(404, "FEEDBACK_NOT_FOUND", "피드백 정보를 찾을 수 없습니다"),
+    FEEDBACK_ALREADY_PUBLISHED(409, "FEEDBACK_ALREADY_PUBLISHED", "이미 발행된 피드백입니다"),
+
+    // 상담
+    CONSULTATION_NOT_FOUND(404, "CONSULTATION_NOT_FOUND", "상담 내역을 찾을 수 없습니다"),
 
     // 학부모
     PARENT_VERIFY_FAILED(400, "PARENT_VERIFY_FAILED", "입력하신 정보가 올바르지 않습니다"),

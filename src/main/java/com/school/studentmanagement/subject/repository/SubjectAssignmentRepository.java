@@ -55,4 +55,14 @@ public interface SubjectAssignmentRepository extends JpaRepository<SubjectAssign
             @Param("year") Integer year,
             @Param("semester")  Integer semester
     );
+
+    // 학기 마감용: 그 학기의 모든 SubjectAssignment (학급, 과목 조합)
+    @Query("SELECT sa FROM SubjectAssignment sa " +
+            "JOIN FETCH sa.classroom " +
+            "JOIN FETCH sa.subject " +
+            "WHERE sa.academicYear = :year AND sa.semester = :semester")
+    List<SubjectAssignment> findAllByAcademicYearAndSemester(
+            @Param("year") Integer year,
+            @Param("semester") Integer semester
+    );
 }

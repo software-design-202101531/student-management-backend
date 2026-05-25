@@ -1,6 +1,5 @@
 package com.school.studentmanagement.grade.controller;
 
-import com.school.studentmanagement.global.enums.ExamType;
 import com.school.studentmanagement.global.response.ApiResponse;
 import com.school.studentmanagement.global.security.dto.CustomUserDetails;
 import com.school.studentmanagement.grade.dto.ClassroomGradeResponse;
@@ -21,7 +20,7 @@ public class StudentGradeController {
 
     private final StudentGradeService studentGradeService;
 
-    // 과목 담당 교사: 학급 전체 성적 일괄 입력
+    // 과목 담당 교사: 학급 전체 성적 일괄 입력 (시험 식별은 body의 examId)
     @PostMapping("/subjects/{subjectId}/grades")
     public ResponseEntity<ApiResponse<Void>> saveGrades(
             @PathVariable Long classroomId,
@@ -49,12 +48,10 @@ public class StudentGradeController {
     public ResponseEntity<ApiResponse<GradeListResponse>> getSubjectGrades(
             @PathVariable Long classroomId,
             @PathVariable Long subjectId,
-            @RequestParam Integer academicYear,
-            @RequestParam Integer semester,
-            @RequestParam ExamType examType,
+            @RequestParam Long examId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         GradeListResponse response = studentGradeService.getSubjectGrades(
-                classroomId, subjectId, userDetails.getUserId(), academicYear, semester, examType);
+                classroomId, subjectId, userDetails.getUserId(), examId);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
@@ -62,12 +59,10 @@ public class StudentGradeController {
     @GetMapping("/grades")
     public ResponseEntity<ApiResponse<ClassroomGradeResponse>> getClassroomGrades(
             @PathVariable Long classroomId,
-            @RequestParam Integer academicYear,
-            @RequestParam Integer semester,
-            @RequestParam ExamType examType,
+            @RequestParam Long examId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         ClassroomGradeResponse response = studentGradeService.getClassroomGrades(
-                classroomId, userDetails.getUserId(), academicYear, semester, examType);
+                classroomId, userDetails.getUserId(), examId);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

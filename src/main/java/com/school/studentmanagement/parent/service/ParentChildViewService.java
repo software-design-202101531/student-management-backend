@@ -8,9 +8,11 @@ import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.parent.dto.ChildInfoResponse;
 import com.school.studentmanagement.parent.entity.ParentStudentMapping;
 import com.school.studentmanagement.parent.repository.ParentStudentMappingRepository;
+import com.school.studentmanagement.student.dto.StudentMyAttendanceResponse;
 import com.school.studentmanagement.student.dto.StudentMyGradeResponse;
 import com.school.studentmanagement.student.dto.StudentMyRecordResponse;
 import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.student.service.StudentAttendanceService;
 import com.school.studentmanagement.student.service.StudentMyPageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class ParentChildViewService {
     private final StudentAffiliationRepository affiliationRepository;
     private final AcademicCalendarUtil academicCalendarUtil;
     private final StudentMyPageService studentMyPageService;
+    private final StudentAttendanceService studentAttendanceService;
 
     public List<ChildInfoResponse> getMyChildren(Long parentId) {
         int year = academicCalendarUtil.getCurrentAcademicYear();
@@ -62,6 +65,11 @@ public class ParentChildViewService {
     public StudentMyRecordResponse getChildRecords(Long parentId, Long studentId, Integer academicYear, Integer semester) {
         validateLinked(parentId, studentId);
         return studentMyPageService.getMyRecords(studentId, academicYear, semester);
+    }
+
+    public StudentMyAttendanceResponse getChildMonthlyAttendance(Long parentId, Long studentId, int year, int month) {
+        validateLinked(parentId, studentId);
+        return studentAttendanceService.getMyMonthlyAttendance(studentId, year, month);
     }
 
     private void validateLinked(Long parentId, Long studentId) {

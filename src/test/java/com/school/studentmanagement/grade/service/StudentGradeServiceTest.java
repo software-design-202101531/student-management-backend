@@ -1,9 +1,9 @@
 package com.school.studentmanagement.grade.service;
 
-import com.school.studentmanagement.classroom.entity.StudentAffiliation;
-import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.classroom.entity.Classroom;
+import com.school.studentmanagement.classroom.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
+import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.enums.*;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.grade.dto.ClassroomGradeResponse;
@@ -11,33 +11,39 @@ import com.school.studentmanagement.grade.dto.GradeListResponse;
 import com.school.studentmanagement.grade.dto.GradeSaveRequest;
 import com.school.studentmanagement.grade.dto.GradeUpdateRequest;
 import com.school.studentmanagement.grade.entity.Exam;
+import com.school.studentmanagement.grade.entity.GradeHistory;
 import com.school.studentmanagement.grade.entity.StudentGrade;
 import com.school.studentmanagement.grade.entity.StudentSemesterStat;
 import com.school.studentmanagement.grade.repository.ExamRepository;
+import com.school.studentmanagement.grade.repository.GradeHistoryRepository;
 import com.school.studentmanagement.grade.repository.StudentGradeRepository;
 import com.school.studentmanagement.grade.repository.StudentSemesterStatRepository;
+import com.school.studentmanagement.student.entity.Student;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.subject.entity.SubjectAssignment;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
-import com.school.studentmanagement.student.entity.Student;
 import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.user.entity.User;
+import com.school.studentmanagement.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -52,8 +58,11 @@ class StudentGradeServiceTest {
     @Mock private SubjectAssignmentRepository subjectAssignmentRepository;
     @Mock private StudentAffiliationRepository studentAffiliationRepository;
     @Mock private ClassRoomRepository classRoomRepository;
+    @Mock private GradeHistoryRepository gradeHistoryRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private SemesterStatRecalculator semesterStatRecalculator;
+    @Mock private SemesterClosureService semesterClosureService;
 
-    // ─── 공통 상수 ───────────────────────────────────────────────────────────────
     private static final Long TEACHER_ID   = 100L;
     private static final Long CLASSROOM_ID = 200L;
     private static final Long SUBJECT_ID   = 1L;
@@ -61,7 +70,6 @@ class StudentGradeServiceTest {
     private static final Long EXAM_ID      = 10L;
     private static final Long GRADE_ID     = 500L;
 
-    // ─── 공통 픽스처 ─────────────────────────────────────────────────────────────
     private Subject   mathSubject;
     private Exam      midtermExam;
     private Student   student;
@@ -75,7 +83,10 @@ class StudentGradeServiceTest {
         ReflectionTestUtils.setField(mathSubject, "id", SUBJECT_ID);
 
         midtermExam = Exam.builder()
-                .academicYear(2026).semester(1).examType(ExamType.MIDTERM).build();
+                .academicYear(2026).semester(1).examType(ExamType.MIDTERM)
+                .name("1학기 중간고사").maxScore(100).weight(0.5)
+                .examDate(LocalDate.of(2026, 4, 25)).published(true)
+                .build();
         ReflectionTestUtils.setField(midtermExam, "id", EXAM_ID);
 
         User teacherUser = User.builder()
@@ -108,6 +119,9 @@ class StudentGradeServiceTest {
 
         affiliation = StudentAffiliation.builder()
                 .student(student).classroom(classroom).studentNum(1).build();
+
+        // 학기는 기본 OPEN 상태
+        lenient().when(semesterClosureService.isClosed(anyInt(), anyInt())).thenReturn(false);
     }
 
     // ==========================================================================
@@ -119,71 +133,77 @@ class StudentGradeServiceTest {
     class SaveGradesTest {
 
         @Test
-        @DisplayName("성공: 기존 시험 없으면 Exam 새로 생성 후 StudentGrade 저장, 통계 초기화")
-        void saveGrades_Success_NewExamAndGrades() {
-            // Given
+        @DisplayName("성공: 신규 성적 저장 + recalculator 호출")
+        void saveGrades_Success_NewGrades() {
             GradeSaveRequest request = buildSaveRequest(STUDENT_ID, 85);
 
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.of(assignment));
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
-                    .willReturn(Optional.empty());
-            given(examRepository.save(any())).willReturn(midtermExam);
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
                     .willReturn(List.of(affiliation));
             given(studentGradeRepository.findByExamIdAndSubjectIdAndStudentIds(any(), any(), anyList()))
                     .willReturn(List.of());
-            given(studentGradeRepository.sumTotalScoreByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(85);
-            given(studentGradeRepository.countByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(1L);
-            given(semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(STUDENT_ID, 2026, 1))
-                    .willReturn(Optional.empty());
 
-            // When
             studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request);
 
-            // Then
-            verify(examRepository).save(any(Exam.class));
             verify(studentGradeRepository).save(any(StudentGrade.class));
-            verify(semesterStatRepository).save(any(StudentSemesterStat.class));
+            verify(semesterStatRecalculator).refresh(eq(student), eq(2026), eq(1));
         }
 
         @Test
-        @DisplayName("성공: 기존 성적이 있으면 updateScore 호출 (새로 저장 X), 통계 갱신")
+        @DisplayName("성공: 기존 성적이 있으면 updateScore 호출 (새로 저장 X)")
         void saveGrades_Success_UpdatesExistingGrades() {
-            // Given
             StudentGrade existingGrade = StudentGrade.builder()
                     .student(student).exam(midtermExam).subject(mathSubject).rawScore(70).build();
             GradeSaveRequest request = buildSaveRequest(STUDENT_ID, 90);
 
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.of(assignment));
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
-                    .willReturn(Optional.of(midtermExam));
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
                     .willReturn(List.of(affiliation));
             given(studentGradeRepository.findByExamIdAndSubjectIdAndStudentIds(any(), any(), anyList()))
                     .willReturn(List.of(existingGrade));
-            given(studentGradeRepository.sumTotalScoreByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(90);
-            given(studentGradeRepository.countByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(1L);
-            given(semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(STUDENT_ID, 2026, 1))
-                    .willReturn(Optional.empty());
 
-            // When
             studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request);
 
-            // Then
             assertThat(existingGrade.getRawScore()).isEqualTo(90);
             verify(studentGradeRepository, never()).save(any(StudentGrade.class));
+            verify(semesterStatRecalculator).refresh(eq(student), eq(2026), eq(1));
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 examId → ExamNotFound")
+        void saveGrades_Fail_WhenExamNotFound() {
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.empty());
+
+            assertThatThrownBy(() ->
+                    studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, buildSaveRequest(STUDENT_ID, 85)))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("해당 시험 정보를 찾을 수 없습니다");
+        }
+
+        @Test
+        @DisplayName("실패: 마감된 학기는 입력 차단 (SEMESTER_CLOSED)")
+        void saveGrades_Fail_WhenSemesterClosed() {
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
+            given(semesterClosureService.isClosed(2026, 1)).willReturn(true);
+
+            assertThatThrownBy(() ->
+                    studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID,
+                            buildSaveRequest(STUDENT_ID, 85)))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("마감되어");
         }
 
         @Test
         @DisplayName("실패: 담당 교사가 아닌 경우 AccessDeniedException")
         void saveGrades_Fail_WhenTeacherNotAuthorized() {
-            // Given
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, buildSaveRequest(STUDENT_ID, 85)))
                     .isInstanceOf(BusinessException.class)
@@ -191,24 +211,94 @@ class StudentGradeServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 학급에 속하지 않는 학생이 포함된 경우 IllegalArgumentException")
+        @DisplayName("실패: 학급에 속하지 않는 학생이 포함된 경우")
         void saveGrades_Fail_WhenStudentNotInClassroom() {
-            // Given
             Long outsiderStudentId = 999L;
             GradeSaveRequest request = buildSaveRequest(outsiderStudentId, 85);
 
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.of(assignment));
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
-                    .willReturn(Optional.of(midtermExam));
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
-                    .willReturn(List.of(affiliation)); // student.id=1L 만 포함
+                    .willReturn(List.of(affiliation));
 
-            // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("학급에 속하지 않는 학생");
+        }
+
+        @Test
+        @DisplayName("성공: ABSENT(결시)면 rawScore=null로 강제 저장")
+        void saveGrades_AbsentStudent_NullScore() {
+            GradeSaveRequest request = GradeSaveRequest.builder()
+                    .examId(EXAM_ID)
+                    .scores(List.of(GradeSaveRequest.StudentScoreDto.builder()
+                            .studentId(STUDENT_ID)
+                            .rawScore(99)
+                            .attendanceStatus(ExamAttendanceStatus.ABSENT)
+                            .build()))
+                    .build();
+
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
+            given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
+                    .willReturn(Optional.of(assignment));
+            given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
+                    .willReturn(List.of(affiliation));
+            given(studentGradeRepository.findByExamIdAndSubjectIdAndStudentIds(any(), any(), anyList()))
+                    .willReturn(List.of());
+
+            studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request);
+
+            ArgumentCaptor<StudentGrade> captor = ArgumentCaptor.forClass(StudentGrade.class);
+            verify(studentGradeRepository).save(captor.capture());
+            StudentGrade saved = captor.getValue();
+            assertThat(saved.getRawScore()).isNull();
+            assertThat(saved.getAttendanceStatus()).isEqualTo(ExamAttendanceStatus.ABSENT);
+        }
+
+        @Test
+        @DisplayName("성공: CHEATED(부정행위)면 rawScore=0으로 강제 저장")
+        void saveGrades_CheatedStudent_ZeroScore() {
+            GradeSaveRequest request = GradeSaveRequest.builder()
+                    .examId(EXAM_ID)
+                    .scores(List.of(GradeSaveRequest.StudentScoreDto.builder()
+                            .studentId(STUDENT_ID)
+                            .rawScore(85)
+                            .attendanceStatus(ExamAttendanceStatus.CHEATED)
+                            .build()))
+                    .build();
+
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
+            given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
+                    .willReturn(Optional.of(assignment));
+            given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
+                    .willReturn(List.of(affiliation));
+            given(studentGradeRepository.findByExamIdAndSubjectIdAndStudentIds(any(), any(), anyList()))
+                    .willReturn(List.of());
+
+            studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request);
+
+            ArgumentCaptor<StudentGrade> captor = ArgumentCaptor.forClass(StudentGrade.class);
+            verify(studentGradeRepository).save(captor.capture());
+            StudentGrade saved = captor.getValue();
+            assertThat(saved.getRawScore()).isEqualTo(0);
+            assertThat(saved.getAttendanceStatus()).isEqualTo(ExamAttendanceStatus.CHEATED);
+        }
+
+        @Test
+        @DisplayName("실패: 시험 만점을 넘는 점수 입력 시 ExamScoreOutOfRange")
+        void saveGrades_Fail_WhenScoreExceedsMaxScore() {
+            GradeSaveRequest request = buildSaveRequest(STUDENT_ID, 150);
+
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
+            given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
+                    .willReturn(Optional.of(assignment));
+
+            assertThatThrownBy(() ->
+                    studentGradeService.saveGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("점수는 0 ~ 100 범위");
         }
     }
 
@@ -221,9 +311,8 @@ class StudentGradeServiceTest {
     class UpdateGradeTest {
 
         @Test
-        @DisplayName("성공: 점수 변경 후 학기 통계 신규 생성")
-        void updateGrade_Success_CreateNewStat() {
-            // Given
+        @DisplayName("성공: 점수 변경 시 grade.update + recalculator 호출")
+        void updateGrade_Success() {
             StudentGrade grade = buildGrade(70);
             GradeUpdateRequest request = GradeUpdateRequest.builder().rawScore(95).build();
 
@@ -232,55 +321,78 @@ class StudentGradeServiceTest {
                     .willReturn(Optional.of(affiliation));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.of(assignment));
-            given(studentGradeRepository.sumTotalScoreByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(95);
-            given(studentGradeRepository.countByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(1L);
-            given(semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(STUDENT_ID, 2026, 1))
-                    .willReturn(Optional.empty());
 
-            // When
             studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID, request);
 
-            // Then
             assertThat(grade.getRawScore()).isEqualTo(95);
-            verify(semesterStatRepository).save(any(StudentSemesterStat.class));
+            verify(semesterStatRecalculator).refresh(eq(student), eq(2026), eq(1));
         }
 
         @Test
-        @DisplayName("성공: 기존 학기 통계가 있으면 updateStats 호출 (새로 저장 X)")
-        void updateGrade_Success_UpdatesExistingSemesterStat() {
-            // Given
+        @DisplayName("성공: 점수가 변경되면 GradeHistory가 기록됨 (before/after/reason 포함)")
+        void updateGrade_RecordsHistoryWhenScoreChanges() {
             StudentGrade grade = buildGrade(70);
-            StudentSemesterStat existingStat = StudentSemesterStat.builder()
-                    .student(student).academicYear(2026).semester(1)
-                    .totalScore(70).averageScore(70.0).build();
+            User teacherUser = User.builder().name("최수학").gender(Gender.MALE)
+                    .role(UserRole.TEACHER).status(UserStatus.ACTIVE).build();
 
             given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
             given(studentAffiliationRepository.findByStudentIdAndClassroomId(STUDENT_ID, CLASSROOM_ID))
                     .willReturn(Optional.of(affiliation));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.of(assignment));
-            given(studentGradeRepository.sumTotalScoreByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(90);
-            given(studentGradeRepository.countByStudentAndSemester(STUDENT_ID, 2026, 1)).willReturn(1L);
-            given(semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(STUDENT_ID, 2026, 1))
-                    .willReturn(Optional.of(existingStat));
+            given(userRepository.findById(TEACHER_ID)).willReturn(Optional.of(teacherUser));
 
-            // When
             studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
-                    GradeUpdateRequest.builder().rawScore(90).build());
+                    GradeUpdateRequest.builder().rawScore(90).reason("재채점 결과 반영").build());
 
-            // Then
-            assertThat(existingStat.getTotalScore()).isEqualTo(90);
-            assertThat(existingStat.getAverageScore()).isEqualTo(90.0);
-            verify(semesterStatRepository, never()).save(any());
+            ArgumentCaptor<GradeHistory> captor = ArgumentCaptor.forClass(GradeHistory.class);
+            verify(gradeHistoryRepository).save(captor.capture());
+            GradeHistory recorded = captor.getValue();
+            assertThat(recorded.getBeforeScore()).isEqualTo(70);
+            assertThat(recorded.getAfterScore()).isEqualTo(90);
+            assertThat(recorded.getChangedByUserId()).isEqualTo(TEACHER_ID);
+            assertThat(recorded.getChangedByName()).isEqualTo("최수학");
+            assertThat(recorded.getReason()).isEqualTo("재채점 결과 반영");
         }
 
         @Test
-        @DisplayName("실패: 존재하지 않는 gradeId → IllegalArgumentException")
+        @DisplayName("성공: 점수가 동일하면 GradeHistory 기록 없음 + recalculator도 호출 안 됨")
+        void updateGrade_SkipsHistoryWhenScoreUnchanged() {
+            StudentGrade grade = buildGrade(70);
+
+            given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
+            given(studentAffiliationRepository.findByStudentIdAndClassroomId(STUDENT_ID, CLASSROOM_ID))
+                    .willReturn(Optional.of(affiliation));
+            given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
+                    .willReturn(Optional.of(assignment));
+
+            studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
+                    GradeUpdateRequest.builder().rawScore(70).build());
+
+            verify(gradeHistoryRepository, never()).save(any(GradeHistory.class));
+            verify(semesterStatRecalculator, never()).refresh(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("실패: 마감된 학기 grade 수정 차단")
+        void updateGrade_Fail_WhenSemesterClosed() {
+            StudentGrade grade = buildGrade(70);
+
+            given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
+            given(semesterClosureService.isClosed(2026, 1)).willReturn(true);
+
+            assertThatThrownBy(() ->
+                    studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
+                            GradeUpdateRequest.builder().rawScore(90).build()))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("마감되어");
+        }
+
+        @Test
+        @DisplayName("실패: 존재하지 않는 gradeId → GradeNotFound")
         void updateGrade_Fail_WhenGradeNotFound() {
-            // Given
             given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
@@ -289,9 +401,8 @@ class StudentGradeServiceTest {
         }
 
         @Test
-        @DisplayName("실패: URL 과목 ID와 성적의 과목이 다른 경우 IllegalArgumentException")
+        @DisplayName("실패: URL 과목 ID와 성적의 과목이 다른 경우")
         void updateGrade_Fail_WhenSubjectMismatch() {
-            // Given - grade의 과목은 국어(id=99), URL의 subjectId는 수학(1L)
             Subject korSubject = new Subject("국어");
             ReflectionTestUtils.setField(korSubject, "id", 99L);
             StudentGrade grade = StudentGrade.builder()
@@ -299,7 +410,6 @@ class StudentGradeServiceTest {
 
             given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
 
-            // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
@@ -308,16 +418,14 @@ class StudentGradeServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 학생이 해당 학급에 속하지 않는 경우 IllegalArgumentException")
+        @DisplayName("실패: 학생이 해당 학급에 속하지 않는 경우")
         void updateGrade_Fail_WhenStudentNotInClassroom() {
-            // Given
             StudentGrade grade = buildGrade(70);
 
             given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
             given(studentAffiliationRepository.findByStudentIdAndClassroomId(STUDENT_ID, CLASSROOM_ID))
                     .willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
@@ -326,9 +434,8 @@ class StudentGradeServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 담당 교사가 아닌 경우 AccessDeniedException")
+        @DisplayName("실패: 담당 교사가 아닌 경우")
         void updateGrade_Fail_WhenTeacherNotAuthorized() {
-            // Given
             StudentGrade grade = buildGrade(70);
 
             given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
@@ -337,12 +444,29 @@ class StudentGradeServiceTest {
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
                     studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
                             GradeUpdateRequest.builder().rawScore(90).build()))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("해당 수업에 대한 성적 수정 권한이 없습니다");
+        }
+
+        @Test
+        @DisplayName("실패: 시험 만점을 넘는 점수로 수정 시 ExamScoreOutOfRange")
+        void updateGrade_Fail_WhenScoreExceedsMaxScore() {
+            StudentGrade grade = buildGrade(70);
+
+            given(studentGradeRepository.findById(GRADE_ID)).willReturn(Optional.of(grade));
+            given(studentAffiliationRepository.findByStudentIdAndClassroomId(STUDENT_ID, CLASSROOM_ID))
+                    .willReturn(Optional.of(affiliation));
+            given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
+                    .willReturn(Optional.of(assignment));
+
+            assertThatThrownBy(() ->
+                    studentGradeService.updateGrade(CLASSROOM_ID, SUBJECT_ID, GRADE_ID, TEACHER_ID,
+                            GradeUpdateRequest.builder().rawScore(150).build()))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("점수는 0 ~ 100 범위");
         }
     }
 
@@ -355,13 +479,11 @@ class StudentGradeServiceTest {
     class GetSubjectGradesTest {
 
         @Test
-        @DisplayName("성공: 성적이 입력된 학생은 rawScore 반환, 미입력 학생은 null 반환")
+        @DisplayName("성공: 입력된 학생은 rawScore, 미입력 학생은 null")
         void getSubjectGrades_Success() {
-            // Given
             StudentGrade grade = buildGrade(85);
             ReflectionTestUtils.setField(grade, "id", GRADE_ID);
 
-            // student2: 미입력
             User studentUser2 = User.builder().name("1-4학생02").gender(Gender.FEMALE)
                     .role(UserRole.STUDENT).status(UserStatus.ACTIVE).build();
             ReflectionTestUtils.setField(studentUser2, "id", 2L);
@@ -370,22 +492,21 @@ class StudentGradeServiceTest {
             StudentAffiliation affiliation2 = StudentAffiliation.builder()
                     .student(student2).classroom(classroom).studentNum(2).build();
 
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
                     .willReturn(Optional.of(assignment));
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
-                    .willReturn(Optional.of(midtermExam));
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
                     .willReturn(List.of(affiliation, affiliation2));
             given(studentGradeRepository.findByExamIdAndSubjectIdAndStudentIds(any(), any(), anyList()))
-                    .willReturn(List.of(grade)); // student1만 입력됨
+                    .willReturn(List.of(grade));
 
-            // When
             GradeListResponse response = studentGradeService.getSubjectGrades(
-                    CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM);
+                    CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, EXAM_ID);
 
-            // Then
             assertThat(response.getSubjectName()).isEqualTo("수학");
             assertThat(response.getExamType()).isEqualTo(ExamType.MIDTERM);
+            assertThat(response.getExamName()).isEqualTo("1학기 중간고사");
+            assertThat(response.getMaxScore()).isEqualTo(100);
             assertThat(response.getGrades()).hasSize(2);
 
             GradeListResponse.StudentGradeDto inputtedDto = response.getGrades().get(0);
@@ -400,33 +521,27 @@ class StudentGradeServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 담당 교사가 아닌 경우 AccessDeniedException")
-        void getSubjectGrades_Fail_WhenTeacherNotAuthorized() {
-            // Given
-            given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
-                    .willReturn(Optional.empty());
+        @DisplayName("실패: 존재하지 않는 examId → ExamNotFound")
+        void getSubjectGrades_Fail_WhenExamNotFound() {
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
-                    studentGradeService.getSubjectGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
+                    studentGradeService.getSubjectGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, EXAM_ID))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("해당 수업의 성적 조회 권한이 없습니다");
+                    .hasMessage("해당 시험 정보를 찾을 수 없습니다");
         }
 
         @Test
-        @DisplayName("실패: 시험 정보가 없는 경우 IllegalArgumentException")
-        void getSubjectGrades_Fail_WhenExamNotFound() {
-            // Given
+        @DisplayName("실패: 담당 교사가 아닌 경우")
+        void getSubjectGrades_Fail_WhenTeacherNotAuthorized() {
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(subjectAssignmentRepository.findValidAssignment(TEACHER_ID, CLASSROOM_ID, SUBJECT_ID, 2026, 1))
-                    .willReturn(Optional.of(assignment));
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
                     .willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
-                    studentGradeService.getSubjectGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
+                    studentGradeService.getSubjectGrades(CLASSROOM_ID, SUBJECT_ID, TEACHER_ID, EXAM_ID))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("해당 시험 정보를 찾을 수 없습니다");
+                    .hasMessage("해당 수업의 성적 조회 권한이 없습니다");
         }
     }
 
@@ -439,18 +554,16 @@ class StudentGradeServiceTest {
     class GetClassroomGradesTest {
 
         @Test
-        @DisplayName("성공: 담임 교사는 학급 전체 과목 성적 + 학기 누적 통계를 조회 가능")
+        @DisplayName("성공: 담임 교사는 학급 전체 과목 성적 + 학기 누적 통계 + 등급 조회 가능")
         void getClassroomGrades_Success() {
-            // Given
             StudentGrade grade = buildGrade(85);
             StudentSemesterStat stat = StudentSemesterStat.builder()
                     .student(student).academicYear(2026).semester(1)
-                    .totalScore(175).averageScore(87.5).build();
+                    .totalScore(175.0).averageScore(87.5).gradeLevel(GradeLevel.B).build();
 
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(TEACHER_ID, 2026, 1))
-                    .willReturn(Optional.of(classroom)); // classroom.id == CLASSROOM_ID(200L) → filter 통과
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
-                    .willReturn(Optional.of(midtermExam));
+                    .willReturn(Optional.of(classroom));
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
                     .willReturn(List.of(affiliation));
             given(studentGradeRepository.findByExamIdAndStudentIds(any(), anyList()))
@@ -458,87 +571,76 @@ class StudentGradeServiceTest {
             given(semesterStatRepository.findByStudentIdsAndYearAndSemester(anyList(), eq(2026), eq(1)))
                     .willReturn(List.of(stat));
 
-            // When
             ClassroomGradeResponse response = studentGradeService.getClassroomGrades(
-                    CLASSROOM_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM);
+                    CLASSROOM_ID, TEACHER_ID, EXAM_ID);
 
-            // Then
+            assertThat(response.getExamName()).isEqualTo("1학기 중간고사");
             assertThat(response.getStudents()).hasSize(1);
             ClassroomGradeResponse.StudentAllGradesDto studentDto = response.getStudents().get(0);
-            assertThat(studentDto.getStudentName()).isEqualTo("1-4학생01");
-            assertThat(studentDto.getTotalScore()).isEqualTo(175);
+            assertThat(studentDto.getTotalScore()).isEqualTo(175.0);
             assertThat(studentDto.getAverageScore()).isEqualTo(87.5);
-            assertThat(studentDto.getSubjectScores()).hasSize(1);
-            assertThat(studentDto.getSubjectScores().get(0).getSubjectName()).isEqualTo("수학");
-            assertThat(studentDto.getSubjectScores().get(0).getRawScore()).isEqualTo(85);
+            assertThat(studentDto.getGradeLevel()).isEqualTo(GradeLevel.B);
         }
 
         @Test
-        @DisplayName("성공: 성적 미입력 학생은 totalScore=0, subjectScores=[] 으로 반환")
+        @DisplayName("성공: 성적 미입력 학생은 totalScore=0.0, gradeLevel=null")
         void getClassroomGrades_Success_StudentWithNoGrades() {
-            // Given
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(TEACHER_ID, 2026, 1))
                     .willReturn(Optional.of(classroom));
-            given(examRepository.findByAcademicYearAndSemesterAndExamType(2026, 1, ExamType.MIDTERM))
-                    .willReturn(Optional.of(midtermExam));
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
                     .willReturn(List.of(affiliation));
             given(studentGradeRepository.findByExamIdAndStudentIds(any(), anyList()))
-                    .willReturn(List.of()); // 성적 없음
+                    .willReturn(List.of());
             given(semesterStatRepository.findByStudentIdsAndYearAndSemester(anyList(), eq(2026), eq(1)))
-                    .willReturn(List.of()); // 통계 없음
+                    .willReturn(List.of());
 
-            // When
             ClassroomGradeResponse response = studentGradeService.getClassroomGrades(
-                    CLASSROOM_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM);
+                    CLASSROOM_ID, TEACHER_ID, EXAM_ID);
 
-            // Then
             ClassroomGradeResponse.StudentAllGradesDto studentDto = response.getStudents().get(0);
-            assertThat(studentDto.getTotalScore()).isEqualTo(0);
-            assertThat(studentDto.getAverageScore()).isEqualTo(0.0);
-            assertThat(studentDto.getSubjectScores()).isEmpty();
+            assertThat(studentDto.getTotalScore()).isEqualTo(0.0);
+            assertThat(studentDto.getGradeLevel()).isNull();
         }
 
         @Test
-        @DisplayName("실패: 담임이 아닌 교사가 다른 학급 조회 시 AccessDeniedException")
+        @DisplayName("실패: 담임이 아닌 교사가 다른 학급 조회 시 AccessDenied")
         void getClassroomGrades_Fail_WhenWrongClassroom() {
-            // Given - 교사의 담임 반은 999L, 요청한 classroomId는 200L
             Classroom anotherClassroom = Classroom.builder()
                     .academicYear(2026).semester(1).grade(1).classNum(1).build();
             ReflectionTestUtils.setField(anotherClassroom, "id", 999L);
 
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(TEACHER_ID, 2026, 1))
                     .willReturn(Optional.of(anotherClassroom));
 
-            // When & Then
             assertThatThrownBy(() ->
-                    studentGradeService.getClassroomGrades(CLASSROOM_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
+                    studentGradeService.getClassroomGrades(CLASSROOM_ID, TEACHER_ID, EXAM_ID))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("담임 교사만 전체 성적을 조회할 수 있습니다");
         }
 
         @Test
-        @DisplayName("실패: 담임 반이 아예 없는 교사인 경우 AccessDeniedException")
+        @DisplayName("실패: 담임 반이 아예 없는 교사인 경우")
         void getClassroomGrades_Fail_WhenNotHomeroomTeacher() {
-            // Given
+            given(examRepository.findById(EXAM_ID)).willReturn(Optional.of(midtermExam));
             given(classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(TEACHER_ID, 2026, 1))
                     .willReturn(Optional.empty());
 
-            // When & Then
             assertThatThrownBy(() ->
-                    studentGradeService.getClassroomGrades(CLASSROOM_ID, TEACHER_ID, 2026, 1, ExamType.MIDTERM))
+                    studentGradeService.getClassroomGrades(CLASSROOM_ID, TEACHER_ID, EXAM_ID))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("담임 교사만 전체 성적을 조회할 수 있습니다");
         }
     }
 
     // ==========================================================================
-    // 테스트 헬퍼
+    // 헬퍼
     // ==========================================================================
 
     private GradeSaveRequest buildSaveRequest(Long studentId, int rawScore) {
         return GradeSaveRequest.builder()
-                .academicYear(2026).semester(1).examType(ExamType.MIDTERM)
+                .examId(EXAM_ID)
                 .scores(List.of(GradeSaveRequest.StudentScoreDto.builder()
                         .studentId(studentId).rawScore(rawScore).build()))
                 .build();

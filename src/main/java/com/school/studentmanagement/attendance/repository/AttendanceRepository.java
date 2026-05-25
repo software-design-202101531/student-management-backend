@@ -14,4 +14,15 @@ public interface AttendanceRepository extends JpaRepository<Attendance,Long> {
     @Query("SELECT a FROM Attendance a JOIN FETCH a.student " +
             "WHERE a.student.id IN :studentIds AND a.date = :date")
     List<Attendance> findByStudentIdsAndDate(@Param("studentIds") List<Long> studentIds, @Param("date") LocalDate date);
+
+    // 학생 본인/학부모용: 한 학생의 날짜 범위 내 출결 특이사항 (PRESENT는 row 없음)
+    @Query("SELECT a FROM Attendance a " +
+            "WHERE a.student.id = :studentId " +
+            "AND a.date BETWEEN :from AND :to " +
+            "ORDER BY a.date ASC")
+    List<Attendance> findByStudentIdAndDateBetween(
+            @Param("studentId") Long studentId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to
+    );
 }

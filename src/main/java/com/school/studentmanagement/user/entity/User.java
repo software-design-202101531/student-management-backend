@@ -19,28 +19,28 @@ import java.time.LocalDateTime;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // 기본키
 
     @Column(unique = true, length = 50)
-    private String loginId;
+    private String loginId; // 로그인 id
 
     @Column(length = 255)
-    private String password;
+    private String password; // 로그인 비밀번호
 
     @Column(nullable = false, length = 50)
-    private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
-    private Gender gender;
+    private String name; // 사용자 이름
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private UserRole role;
+    private Gender gender; // 성별(남/여)
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private UserStatus status;
+    private UserRole role; // 역할(학생/학부모/선생/관리자)
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
+    private UserStatus status; // 상태()
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

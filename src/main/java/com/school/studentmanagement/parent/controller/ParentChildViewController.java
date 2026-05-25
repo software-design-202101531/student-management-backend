@@ -4,6 +4,7 @@ import com.school.studentmanagement.global.response.ApiResponse;
 import com.school.studentmanagement.global.security.dto.CustomUserDetails;
 import com.school.studentmanagement.parent.dto.ChildInfoResponse;
 import com.school.studentmanagement.parent.service.ParentChildViewService;
+import com.school.studentmanagement.student.dto.StudentMyAttendanceResponse;
 import com.school.studentmanagement.student.dto.StudentMyGradeResponse;
 import com.school.studentmanagement.student.dto.StudentMyRecordResponse;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +57,20 @@ public class ParentChildViewController {
         Long parentId = userDetails.getUserId();
         return ResponseEntity.ok(ApiResponse.ok(
                 parentChildViewService.getChildRecords(parentId, studentId, academicYear, semester)
+        ));
+    }
+
+    // 자녀 월간 출결 조회 (학생 본인 조회 로직에 위임)
+    @GetMapping("/children/{studentId}/attendance/monthly")
+    public ResponseEntity<ApiResponse<StudentMyAttendanceResponse>> getChildMonthlyAttendance(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long studentId,
+            @RequestParam int year,
+            @RequestParam int month
+    ) {
+        Long parentId = userDetails.getUserId();
+        return ResponseEntity.ok(ApiResponse.ok(
+                parentChildViewService.getChildMonthlyAttendance(parentId, studentId, year, month)
         ));
     }
 }
