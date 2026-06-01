@@ -1,6 +1,7 @@
 package com.school.studentmanagement.subject.entity;
 
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "subjects")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Subject {
+public class Subject extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

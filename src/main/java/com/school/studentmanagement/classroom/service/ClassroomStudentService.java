@@ -7,6 +7,7 @@ import com.school.studentmanagement.classroom.entity.Classroom;
 import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.exception.ErrorCode;
+import com.school.studentmanagement.global.storage.FileStorageService;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +24,7 @@ public class ClassroomStudentService {
     private final StudentAffiliationRepository studentAffiliationRepository;
     private final AcademicCalendarUtil academicCalendarUtil;
     private final SubjectAssignmentRepository subjectAssignmentRepository;
+    private final FileStorageService fileStorageService;
 
     // 현재 연도/학기 기준으로 로그인 한 선생님의 담임 반 학생 목록을 조회
     @Transactional(readOnly = true)
@@ -36,15 +37,7 @@ public class ClassroomStudentService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.HOMEROOM_NOT_FOUND,
                         currentYear + "학년도 " + currentSemester + "학기에는 담임을 담당한 반이 없습니다"));
 
-        var affiliations = studentAffiliationRepository.findAllByClassroomId(homeroom.getId());
-
-        return affiliations.stream()
-                .map(aff -> StudentListResponse.builder()
-                        .studentId(aff.getStudent().getId())
-                        .studentNum(aff.getStudentNum())
-                        .name(aff.getStudent().getUser().getName())
-                        .build())
-                .collect(Collectors.toList());
+        return toStudentList(studentAffiliationRepository.findAllByClassroomId(homeroom.getId()));
     }
 
     // 수업 담당 반 중 하나의 반의 학생 리스트를 조회
@@ -54,19 +47,22 @@ public class ClassroomStudentService {
         int currentSemester = academicCalendarUtil.getCurrentSemester();
 
         boolean hasAccess = subjectAssignmentRepository
-                .existsByTeacherIdAndClassroomIdAndYear(teacherId, classroomId, currentYear, currentSemester);
+                .existsByTeacherIdAndClassroomIdAndAcademicYearAndSemester(teacherId, classroomId, currentYear, currentSemester);
         if (!hasAccess) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "해당 반 수업의 담당 교사가 아닙니다");
         }
 
-        List<StudentAffiliation> affiliations = studentAffiliationRepository.findAllByClassroomId(classroomId);
+        return toStudentList(studentAffiliationRepository.findAllByClassroomId(classroomId));
+    }
 
+    private List<StudentListResponse> toStudentList(List<StudentAffiliation> affiliations) {
         return affiliations.stream()
                 .map(aff -> StudentListResponse.builder()
                         .studentId(aff.getStudent().getId())
                         .studentNum(aff.getStudentNum())
                         .name(aff.getStudent().getUser().getName())
+                        .profileImageUrl(fileStorageService.presignedGetUrl(aff.getStudent().getProfileImageKey()))
                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 }

@@ -29,12 +29,19 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // 통합 테스트용 Testcontainers (실제 Postgres/RabbitMQ) — 버전은 Spring Boot BOM이 관리
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:rabbitmq'
 
     // Swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.4.0'
@@ -50,6 +57,18 @@ dependencies {
 
     // Apache POI(엑셀 파싱)
     implementation 'org.apache.poi:poi-ooxml:5.4.0'
+
+    // AWS S3 SDK (MinIO 등 S3 호환 스토리지 연동)
+    implementation 'software.amazon.awssdk:s3:2.31.0'
+
+    // Flyway — analytics(OLAP) 스키마/테이블 마이그레이션 전용 (운영 public은 ddl-auto 유지)
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // 보고서 PDF: Thymeleaf(HTML 템플릿) + openhtmltopdf(HTML→PDF) + jsoup(HTML5 → W3C DOM 변환)
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10'
+    implementation 'org.jsoup:jsoup:1.18.1'
 }
 
 tasks.named('test') {

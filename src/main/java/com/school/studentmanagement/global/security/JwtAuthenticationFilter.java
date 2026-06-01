@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -30,11 +31,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // HTTP Request Header에서 토큰 추출
         String token = resolveToken(request);
 
-        // 토큰이 존재하고 유효성 검사를 통과했는지 확인
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            // 유효한 토큰이면 인증 객체를 가져와 SecutiryContext에 저장
+        // 토큰이 존재하고 유효하며 access 타입인지 확인 (refresh 토큰으로는 API 접근 불가)
+        if (token != null && jwtTokenProvider.validateToken(token) && jwtTokenProvider.isAccessToken(token)) {
+            // 유효한 토큰이면 인증 객체를 가져옴
             Authentication authentication = jwtTokenProvider.getAuthentication(token);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            // 비활성(탈퇴/휴면) 계정은 유효 토큰이어도 인증을 부여하지 않는다
+            Object principal = authentication.getPrincipal();
+            boolean enabled = !(principal instanceof UserDetails userDetails) || userDetails.isEnabled();
+            if (enabled) {
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
         // 검증 종료 후 다음 필터로 요청을 전달

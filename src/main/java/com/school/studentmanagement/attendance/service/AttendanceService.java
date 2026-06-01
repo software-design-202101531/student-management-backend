@@ -34,13 +34,16 @@ public class AttendanceService {
     private final StudentAffiliationRepository studentAffiliationRepository;
     private final AttendanceRepository attendanceRepository;
     private final TeacherRepository teacherRepository;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     // 담임 선생님이 맞는지 검증
     private void validateHomeroomTeacher(Long classroomId, Long teacherId) {
         Classroom classroom = classRoomRepository.findById(classroomId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CLASSROOM_NOT_FOUND));
 
-        if (!classroom.getHomeroomTeacher().getId().equals(teacherId)) {
+        // 담임 미배정 학급(homeroomTeacher == null)일 수 있으므로 null 안전하게 검사한다
+        Teacher homeroomTeacher = classroom.getHomeroomTeacher();
+        if (homeroomTeacher == null || !homeroomTeacher.getId().equals(teacherId)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "해당 반의 담임이 아닙니다");
         }
     }
@@ -57,7 +60,7 @@ public class AttendanceService {
                         .date(h.getDate())
                         .name(h.getDescription())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
 
         return AttendanceMonthlyResponse.builder()
                 .year(year)
@@ -75,7 +78,7 @@ public class AttendanceService {
         boolean isHoliday = calendar != null && !calendar.getDayType().name().equals("WEEKDAY");
 
         List<StudentAffiliation> affiliations = studentAffiliationRepository.findAllByClassroomId(classroomId);
-        List<Long> studentIds = affiliations.stream().map(a -> a.getStudent().getId()).collect(Collectors.toList());
+        List<Long> studentIds = affiliations.stream().map(a -> a.getStudent().getId()).toList();
 
         List<Attendance> existingRecords = attendanceRepository.findByStudentIdsAndDate(studentIds, date);
 
@@ -91,7 +94,7 @@ public class AttendanceService {
                     .status(record != null ? record.getStatus() : AttendanceStatus.PRESENT)
                     .reason(record != null ? record.getReason() : null)
                     .build();
-        }).collect(Collectors.toList());
+        }).toList();
 
         return AttendanceDailyResponse.builder()
                 .date(date)
@@ -145,5 +148,11 @@ public class AttendanceService {
                 }
             }
         }
+
+        // 분석 증분 적재 트리거 — 영향받은 학생별 출결 요약 재집계(커밋 이후 RabbitMQ로 중계)
+        requestStudentIds.forEach(sid -> eventPublisher.publishEvent(
+                new com.school.studentmanagement.analytics.event.AnalyticsSourceEvent(
+                        com.school.studentmanagement.analytics.event.AnalyticsRabbitConfig.RK_ATTENDANCE_RECORDED,
+                        new com.school.studentmanagement.analytics.event.AnalyticsEventMessage(sid, null))));
     }
 }

@@ -7,6 +7,7 @@ import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.global.enums.UserRole;
 import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.global.exception.BusinessException;
+import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.teacher.dto.TeacherProfileResponse;
 import com.school.studentmanagement.teacher.entity.Teacher;
@@ -32,10 +33,13 @@ class TeacherProfileServiceTest {
     @InjectMocks private TeacherProfileService teacherProfileService;
     @Mock private TeacherRepository teacherRepository;
     @Mock private ClassRoomRepository classRoomRepository;
+    @Mock private AcademicCalendarUtil academicCalendarUtil;
 
     private Teacher teacher;
     private Classroom homeroom;
     private static final Long TEACHER_ID = 100L;
+    private static final int CURRENT_YEAR = 2026;
+    private static final int CURRENT_SEMESTER = 1;
 
     @BeforeEach
     void setUp() {
@@ -59,8 +63,11 @@ class TeacherProfileServiceTest {
     @Test
     @DisplayName("내 정보 조회 성공: 담임 반이 있는 경우 homeroom 정보 포함")
     void getMyProfile_Success_WithHomeroom() {
-        given(teacherRepository.findByIdwithDetails(TEACHER_ID)).willReturn(Optional.of(teacher));
-        given(classRoomRepository.findClassroomByHomeroomTeacher(teacher)).willReturn(Optional.of(homeroom));
+        given(teacherRepository.findByIdWithDetails(TEACHER_ID)).willReturn(Optional.of(teacher));
+        given(academicCalendarUtil.getCurrentAcademicYear()).willReturn(CURRENT_YEAR);
+        given(academicCalendarUtil.getCurrentSemester()).willReturn(CURRENT_SEMESTER);
+        given(classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(
+                TEACHER_ID, CURRENT_YEAR, CURRENT_SEMESTER)).willReturn(Optional.of(homeroom));
 
         TeacherProfileResponse response = teacherProfileService.getMyProfile(TEACHER_ID);
 
@@ -76,8 +83,11 @@ class TeacherProfileServiceTest {
     @Test
     @DisplayName("내 정보 조회 성공: 담임 반이 없는 경우 homeroom 필드 null")
     void getMyProfile_Success_WithoutHomeroom() {
-        given(teacherRepository.findByIdwithDetails(TEACHER_ID)).willReturn(Optional.of(teacher));
-        given(classRoomRepository.findClassroomByHomeroomTeacher(teacher)).willReturn(Optional.empty());
+        given(teacherRepository.findByIdWithDetails(TEACHER_ID)).willReturn(Optional.of(teacher));
+        given(academicCalendarUtil.getCurrentAcademicYear()).willReturn(CURRENT_YEAR);
+        given(academicCalendarUtil.getCurrentSemester()).willReturn(CURRENT_SEMESTER);
+        given(classRoomRepository.findClassroomByHomeroomTeacherIdAndAcademicYearAndSemester(
+                TEACHER_ID, CURRENT_YEAR, CURRENT_SEMESTER)).willReturn(Optional.empty());
 
         TeacherProfileResponse response = teacherProfileService.getMyProfile(TEACHER_ID);
 
@@ -90,7 +100,7 @@ class TeacherProfileServiceTest {
     @Test
     @DisplayName("내 정보 조회 실패: 존재하지 않는 교사 ID → BusinessException")
     void getMyProfile_Fail_TeacherNotFound() {
-        given(teacherRepository.findByIdwithDetails(TEACHER_ID)).willReturn(Optional.empty());
+        given(teacherRepository.findByIdWithDetails(TEACHER_ID)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> teacherProfileService.getMyProfile(TEACHER_ID))
                 .isInstanceOf(BusinessException.class)

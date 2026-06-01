@@ -1,6 +1,5 @@
 package com.school.studentmanagement.global.security.dto;
 
-import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.user.entity.User;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +43,7 @@ public class CustomUserDetails implements UserDetails {
 
 
     // 계정 상태 검사 로직
-    // 상태가 UserStatus.ACTIVE 상태일 때만 로그인과 권한을 허용
+    // 계정이 활성 상태일 때만 로그인과 권한을 허용
     @Override
     public boolean isAccountNonExpired() {
         return true;
@@ -52,7 +51,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return user.getStatus() == UserStatus.ACTIVE;
+        return user.isActive();
     }
 
     @Override
@@ -62,6 +61,6 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return user.getStatus() == UserStatus.ACTIVE;
+        return user.isActive();
     }
 }

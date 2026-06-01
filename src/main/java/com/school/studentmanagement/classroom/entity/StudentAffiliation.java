@@ -1,5 +1,6 @@
 package com.school.studentmanagement.classroom.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.student.entity.Student;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -8,10 +9,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "student_affiliations")
+@Table(
+        name = "student_affiliations",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_affiliation_student_classroom",
+                columnNames = {"student_id", "classroom_id"}
+        )
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StudentAffiliation {
+public class StudentAffiliation extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

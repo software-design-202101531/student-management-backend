@@ -62,6 +62,7 @@ class StudentGradeServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private SemesterStatRecalculator semesterStatRecalculator;
     @Mock private SemesterClosureService semesterClosureService;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private static final Long TEACHER_ID   = 100L;
     private static final Long CLASSROOM_ID = 200L;

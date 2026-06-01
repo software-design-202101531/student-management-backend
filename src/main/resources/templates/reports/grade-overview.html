@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Nanum Gothic', sans-serif; color: #1e293b; font-size: 12px; }
+        h1 { font-size: 20px; margin: 0 0 4px 0; }
+        h2 { font-size: 14px; margin: 18px 0 4px 0; border-bottom: 2px solid #2563eb; padding-bottom: 4px; }
+        p.meta { color: #64748b; margin: 0 0 8px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+        th { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+<h1>성적 분석 보고서</h1>
+<p class="meta">
+    <span th:text="${overview.studentName}">학생</span>
+    (<span th:text="${overview.grade}">0</span>학년
+    <span th:text="${overview.classNum}">0</span>반
+    <span th:text="${overview.studentNum}">0</span>번) ·
+    <span th:text="${overview.academicYear}">0</span>학년도
+    <span th:text="${overview.semester}">0</span>학기
+</p>
+
+<h2>학기 요약</h2>
+<table>
+    <tr>
+        <th>총점</th><td th:text="${overview.totalScore}">-</td>
+        <th>평균</th><td th:text="${overview.averageScore}">-</td>
+    </tr>
+    <tr>
+        <th>성취등급</th><td th:text="${overview.gradeLevel}">-</td>
+        <th>석차</th>
+        <td><span th:text="${overview.classRank}">-</span> / <span th:text="${overview.classSize}">-</span></td>
+    </tr>
+</table>
+
+<h2>과목별 학기 점수</h2>
+<table>
+    <thead>
+    <tr><th>과목</th><th>학기점수</th><th>반평균</th></tr>
+    </thead>
+    <tbody>
+    <tr th:each="s : ${overview.subjectScores}">
+        <td th:text="${s.subjectName}">과목</td>
+        <td th:text="${s.semesterScore}">0</td>
+        <td th:text="${s.classAverage}">0</td>
+    </tr>
+    </tbody>
+</table>
+
+<h2>시험별 성적</h2>
+<table>
+    <thead>
+    <tr><th>시험</th><th>유형</th><th>일자</th><th>과목</th><th>점수</th><th>응시상태</th></tr>
+    </thead>
+    <tbody>
+    <th:block th:each="ex : ${overview.examResults}">
+        <tr th:each="sub : ${ex.subjects}">
+            <td th:text="${ex.examName}">시험</td>
+            <td th:text="${ex.examType}">유형</td>
+            <td th:text="${ex.examDate}">일자</td>
+            <td th:text="${sub.subjectName}">과목</td>
+            <td th:text="${sub.rawScore}">점수</td>
+            <td th:text="${sub.attendanceStatus}">상태</td>
+        </tr>
+    </th:block>
+    </tbody>
+</table>
+</body>
+</html>

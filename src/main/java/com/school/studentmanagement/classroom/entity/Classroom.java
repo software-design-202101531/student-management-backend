@@ -1,6 +1,7 @@
 package com.school.studentmanagement.classroom.entity;
 
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.teacher.entity.Teacher;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -9,16 +10,22 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "classrooms")
+@Table(
+        name = "classrooms",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_classroom_year_semester_grade_class",
+                columnNames = {"academic_year", "semester", "grade", "class_num"}
+        )
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Classroom {
+public class Classroom extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "academic_year", nullable = false)
     private Integer academicYear; // 연도
 
     @Column(nullable = false)
@@ -27,7 +34,7 @@ public class Classroom {
     @Column(nullable = false)
     private Integer grade; // 학년
 
-    @Column(nullable = false)
+    @Column(name = "class_num", nullable = false)
     private Integer classNum; // 반
 
     @ManyToOne(fetch = FetchType.LAZY)

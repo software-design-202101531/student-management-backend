@@ -5,6 +5,7 @@ import com.school.studentmanagement.classroom.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.exception.ErrorCode;
+import com.school.studentmanagement.analytics.repository.AnalyticsGradeQueryRepository;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.grade.dto.GradeTrendResponse;
 import com.school.studentmanagement.grade.dto.RadarChartResponse;
@@ -16,8 +17,7 @@ import com.school.studentmanagement.grade.repository.ClassSubjectScoreAggregatio
 import com.school.studentmanagement.grade.repository.StudentGradeRepository;
 import com.school.studentmanagement.grade.repository.StudentSemesterStatRepository;
 import com.school.studentmanagement.grade.repository.SubjectScoreAggregation;
-import com.school.studentmanagement.grade.repository.SubjectSemesterTrendPoint;
-import com.school.studentmanagement.parent.repository.ParentStudentMappingRepository;
+import com.school.studentmanagement.parent.validator.ParentChildLinkValidator;
 import com.school.studentmanagement.student.entity.Student;
 import com.school.studentmanagement.student.repository.StudentRepository;
 import com.school.studentmanagement.subject.entity.Subject;
@@ -40,9 +40,10 @@ public class GradeAnalyticsService {
     private final StudentAffiliationRepository studentAffiliationRepository;
     private final SubjectRepository subjectRepository;
     private final SubjectAssignmentRepository subjectAssignmentRepository;
-    private final ParentStudentMappingRepository parentMappingRepository;
+    private final ParentChildLinkValidator parentChildLinkValidator;
     private final StudentRepository studentRepository;
     private final AcademicCalendarUtil academicCalendarUtil;
+    private final AnalyticsGradeQueryRepository analyticsGradeQueryRepository;
 
     // ─── 레이더 차트 ─────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ public class GradeAnalyticsService {
     }
 
     public RadarChartResponse getChildRadar(Long parentId, Long studentId, Integer academicYear, Integer semester) {
-        validateParentChild(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return getStudentRadar(studentId, academicYear, semester);
     }
 
@@ -68,48 +69,34 @@ public class GradeAnalyticsService {
         StudentAffiliation aff = studentAffiliationRepository.findWithAllDetails(studentId, year, semester)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_ASSIGNED));
 
-        // 학생 본인의 과목별 학기점수
-        Map<Long, Double> studentScores = studentGradeRepository
-                .aggregateSubjectScoresByStudentAndSemester(studentId, year, semester)
-                .stream()
-                .collect(Collectors.toMap(SubjectScoreAggregation::getSubjectId,
-                        SubjectScoreAggregation::getSubjectScore));
+        // 학생 본인의 과목별 학기점수 — analytics 사전 집계에서 조회(운영 OLTP 직접 집계 이관, P3)
+        Map<Long, Double> studentScores = analyticsGradeQueryRepository
+                .findStudentSubjectScores(studentId, year, semester);
 
-        // 학급 전체의 과목별 점수 → 메모리 평균
+        // 학급 전체의 과목별 평균 — analytics에서 학급 학생들의 가중점수 평균을 집계
         List<StudentAffiliation> classAffiliations = studentAffiliationRepository
                 .findAllByClassroomId(aff.getClassroom().getId());
         List<Long> classStudentIds = classAffiliations.stream()
                 .map(a -> a.getStudent().getId())
                 .toList();
 
-        List<ClassSubjectScoreAggregation> classScores = studentGradeRepository
-                .aggregateSubjectScoresByStudentIdsAndSemester(classStudentIds, year, semester);
+        Map<Long, Double> classAverages = analyticsGradeQueryRepository
+                .findClassSubjectAverages(classStudentIds, year, semester);
 
-        Map<Long, List<Double>> scoresBySubject = classScores.stream()
-                .collect(Collectors.groupingBy(
-                        ClassSubjectScoreAggregation::getSubjectId,
-                        Collectors.mapping(ClassSubjectScoreAggregation::getSubjectScore, Collectors.toList())
-                ));
-
-        // 과목명: 본인 점수 또는 학급 점수가 존재하는 과목들의 합집합
+        // 과목명: 본인 점수 또는 학급 평균이 존재하는 과목들의 합집합
         Set<Long> subjectIds = new LinkedHashSet<>();
         subjectIds.addAll(studentScores.keySet());
-        subjectIds.addAll(scoresBySubject.keySet());
+        subjectIds.addAll(classAverages.keySet());
         Map<Long, String> subjectNames = subjectRepository.findAllById(subjectIds).stream()
                 .collect(Collectors.toMap(Subject::getId, Subject::getName));
 
         List<RadarChartResponse.SubjectRadarDto> subjectDtos = subjectIds.stream()
-                .map(id -> {
-                    List<Double> classList = scoresBySubject.getOrDefault(id, List.of());
-                    Double classAvg = classList.isEmpty() ? null
-                            : classList.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-                    return RadarChartResponse.SubjectRadarDto.builder()
-                            .subjectId(id)
-                            .subjectName(subjectNames.getOrDefault(id, "(unknown)"))
-                            .studentScore(studentScores.get(id))
-                            .classAverage(classAvg)
-                            .build();
-                })
+                .map(id -> RadarChartResponse.SubjectRadarDto.builder()
+                        .subjectId(id)
+                        .subjectName(subjectNames.getOrDefault(id, "(unknown)"))
+                        .studentScore(studentScores.get(id))
+                        .classAverage(classAverages.get(id))
+                        .build())
                 .toList();
 
         return RadarChartResponse.builder()
@@ -245,17 +232,33 @@ public class GradeAnalyticsService {
 
     public GradeTrendResponse getChildTrend(Long parentId, Long studentId, Integer fromYear, Integer fromSemester,
                                             Integer toYear, Integer toSemester) {
-        validateParentChild(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return buildTrend(studentId, fromYear, fromSemester, toYear, toSemester);
     }
 
     public GradeTrendResponse getTrendForTeacher(Long teacherId, Long studentId,
                                                  Integer fromYear, Integer fromSemester,
                                                  Integer toYear, Integer toSemester) {
-        int currentYear = academicCalendarUtil.getCurrentAcademicYear();
-        int currentSem = academicCalendarUtil.getCurrentSemester();
-        validateTeacherCanViewStudent(teacherId, studentId, currentYear, currentSem);
-        return buildTrend(studentId, fromYear, fromSemester, toYear, toSemester);
+        GradeTrendResponse trend = buildTrend(studentId, fromYear, fromSemester, toYear, toSemester);
+
+        // 구간별 권한 검증: 추이에 실제로 노출되는 각 학기마다 교사-학생 관계를 확인한다.
+        // (현재 학기 관계만으로 과거 전체 이력을 열람하던 문제 방지)
+        Set<Integer> validated = new HashSet<>();
+        for (GradeTrendResponse.SubjectTrendDto subject : trend.getSubjects()) {
+            for (GradeTrendResponse.TrendPoint point : subject.getPoints()) {
+                int key = point.getAcademicYear() * 10 + point.getSemester();
+                if (validated.add(key)) {
+                    validateTeacherCanViewStudent(teacherId, studentId,
+                            point.getAcademicYear(), point.getSemester());
+                }
+            }
+        }
+        // 노출 데이터가 전혀 없으면 최소한 현재 학기 관계를 확인 (임의 학생 probe 방지)
+        if (validated.isEmpty()) {
+            validateTeacherCanViewStudent(teacherId, studentId,
+                    academicCalendarUtil.getCurrentAcademicYear(), academicCalendarUtil.getCurrentSemester());
+        }
+        return trend;
     }
 
     private GradeTrendResponse buildTrend(Long studentId, Integer fromYear, Integer fromSemester,
@@ -271,11 +274,12 @@ public class GradeAnalyticsService {
         int fromKey = fy * 10 + fs;
         int toKey = ty * 10 + ts;
 
-        List<SubjectSemesterTrendPoint> rows = studentGradeRepository
-                .aggregateSubjectTrendByStudentAndRange(studentId, fromKey, toKey);
+        // 추세 점수도 analytics 사전 집계에서 조회(운영 OLTP 직접 집계 이관, P3)
+        List<AnalyticsGradeQueryRepository.TrendRow> rows = analyticsGradeQueryRepository
+                .findStudentSubjectTrend(studentId, fromKey, toKey);
 
-        Map<Long, List<SubjectSemesterTrendPoint>> bySubject = rows.stream()
-                .collect(Collectors.groupingBy(SubjectSemesterTrendPoint::getSubjectId,
+        Map<Long, List<AnalyticsGradeQueryRepository.TrendRow>> bySubject = rows.stream()
+                .collect(Collectors.groupingBy(AnalyticsGradeQueryRepository.TrendRow::subjectId,
                         LinkedHashMap::new, Collectors.toList()));
 
         Map<Long, String> subjectNames = subjectRepository.findAllById(bySubject.keySet()).stream()
@@ -287,9 +291,9 @@ public class GradeAnalyticsService {
                         .subjectName(subjectNames.getOrDefault(e.getKey(), "(unknown)"))
                         .points(e.getValue().stream()
                                 .map(p -> GradeTrendResponse.TrendPoint.builder()
-                                        .academicYear(p.getAcademicYear())
-                                        .semester(p.getSemester())
-                                        .semesterScore(p.getSemesterScore())
+                                        .academicYear(p.academicYear())
+                                        .semester(p.semester())
+                                        .semesterScore(p.score())
                                         .build())
                                 .toList())
                         .build())
@@ -304,11 +308,6 @@ public class GradeAnalyticsService {
 
     // ─── 권한 검증 헬퍼 ──────────────────────────────────────────────────────
 
-    private void validateParentChild(Long parentId, Long studentId) {
-        if (!parentMappingRepository.existsByParentIdAndStudentId(parentId, studentId)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "연결된 자녀가 아닙니다");
-        }
-    }
 
     private void validateTeacherCanViewStudent(Long teacherId, Long studentId, int year, int semester) {
         StudentAffiliation aff = studentAffiliationRepository.findWithAllDetails(studentId, year, semester)
@@ -320,7 +319,7 @@ public class GradeAnalyticsService {
         if (isHomeroom) return;
 
         boolean hasAssignment = subjectAssignmentRepository
-                .existsByTeacherIdAndClassroomIdAndYear(teacherId, classroomId, year, semester);
+                .existsByTeacherIdAndClassroomIdAndAcademicYearAndSemester(teacherId, classroomId, year, semester);
         if (!hasAssignment) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "해당 학생을 조회할 권한이 없습니다");
         }

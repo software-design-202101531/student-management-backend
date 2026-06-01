@@ -47,6 +47,7 @@ class AttendanceServiceTest {
     @Mock private StudentAffiliationRepository studentAffiliationRepository;
     @Mock private AttendanceRepository attendanceRepository;
     @Mock private TeacherRepository teacherRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private static final Long TEACHER_ID   = 100L;
     private static final Long CLASSROOM_ID = 200L;

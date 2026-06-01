@@ -35,6 +35,10 @@ public interface StudentGradeRepository extends JpaRepository<StudentGrade, Long
 
     Optional<StudentGrade> findByStudentIdAndExamIdAndSubjectId(Long studentId, Long examId, Long subjectId);
 
+    // 특정 시험에 성적이 등록된 학생 PK 목록 (성적 발행 알림 수신자 산출용)
+    @Query("SELECT DISTINCT sg.student.id FROM StudentGrade sg WHERE sg.exam.id = :examId")
+    List<Long> findDistinctStudentIdsByExamId(@Param("examId") Long examId);
+
     // 학기 통계용: 한 학생의 한 학기 과목별 가중평균 점수 (0~100 환산)
     //   ABSENT(rawScore=null) 행은 자동으로 제외 — 가중평균 분모/분자에서 빠짐.
     //   CHEATED(rawScore=0)은 0점으로 평균에 포함.
@@ -87,17 +91,7 @@ public interface StudentGradeRepository extends JpaRepository<StudentGrade, Long
             @Param("toKey") Integer toKey
     );
 
-    // 학급 통계용: ABSENT 제외한 점수만
-    @Query("SELECT sg.rawScore FROM StudentGrade sg " +
-            "WHERE sg.exam.id = :examId " +
-            "AND sg.subject.id = :subjectId " +
-            "AND sg.student.id IN :studentIds " +
-            "AND sg.rawScore IS NOT NULL")
-    List<Integer> findRawScoresByExamIdAndSubjectIdAndStudentIds(
-            @Param("examId") Long examId,
-            @Param("subjectId") Long subjectId,
-            @Param("studentIds") List<Long> studentIds
-    );
+    // (제거됨) 학급 통계 원점수 직접 조회 — analytics.classroom_exam_subject_stats 사전 집계로 이관(P3)
 
     // 학생 본인 성적 조회: published=true인 시험만
     @Query("SELECT sg FROM StudentGrade sg " +

@@ -1,5 +1,6 @@
 package com.school.studentmanagement.grade.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.ExamAttendanceStatus;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.student.entity.Student;
@@ -21,11 +22,16 @@ import lombok.NoArgsConstructor;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StudentGrade {
+public class StudentGrade extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // 낙관적 락 — 여러 교사가 같은 학생/시험/과목 성적을 동시 수정할 때의 갱신 손실(Lost Update) 방지.
+    // 충돌 시 ObjectOptimisticLockingFailureException → GlobalExceptionHandler 가 409(RECORD_CONFLICT)로 변환.
+    @Version
+    private Long version;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)

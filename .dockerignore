@@ -1,0 +1,24 @@
+# 빌드 캐시/산출물
+build/
+.gradle/
+out/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# git / CI
+.git/
+.github/
+
+# 로컬 인프라 데이터 (혹시 워크스페이스에 있을 경우 이미지에 포함 방지)
+db/data/
+redis/data/
+rabbitmq/data/
+minio/data/
+
+# 환경/비밀
+.env
+*.env

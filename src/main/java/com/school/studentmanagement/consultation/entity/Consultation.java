@@ -1,5 +1,6 @@
 package com.school.studentmanagement.consultation.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.ConsultationVisibility;
 import com.school.studentmanagement.student.entity.Student;
 import com.school.studentmanagement.teacher.entity.Teacher;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "consultations")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Consultation {
+public class Consultation extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,13 +35,12 @@ public class Consultation {
     @Column(nullable = false)
     private LocalDateTime consultationDate;
 
-    // 주요 내용
-    @Lob
-    @Column(nullable = false)
+    // 주요 내용 — 대용량 텍스트는 PostgreSQL TEXT로 매핑(@Lob은 oid/라지오브젝트가 되어 네이티브 SQL·문자열 함수에서 타입 문제 발생).
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     // 다음 상담 계획 (선택)
-    @Lob
+    @Column(columnDefinition = "TEXT")
     private String nextPlan;
 
     // 공개 범위 (기본값 RESTRICTED)
@@ -48,11 +48,7 @@ public class Consultation {
     @Column(nullable = false, length = 20)
     private ConsultationVisibility visibility;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    // createdAt/updatedAt은 BaseTimeEntity(JPA Auditing)가 관리
 
     private Consultation(Teacher teacher, Student student, LocalDateTime consultationDate,
                          String content, String nextPlan, ConsultationVisibility visibility) {
@@ -62,8 +58,6 @@ public class Consultation {
         this.content = content;
         this.nextPlan = nextPlan;
         this.visibility = visibility;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = this.createdAt;
     }
 
     // 생성 — visibility 미지정 시 기본값 RESTRICTED
@@ -78,7 +72,24 @@ public class Consultation {
     // 공개 범위 토글 (RESTRICTED <-> ALL_TEACHERS)
     public void toggleVisibility() {
         this.visibility = this.visibility.toggle();
-        this.updatedAt = LocalDateTime.now();
+    }
+
+    // 본문/일시/계획/공개범위 부분 갱신 — 작성자 본인만(서비스에서 검증). null 인자는 변경 없음.
+    public void update(LocalDateTime consultationDate, String content, String nextPlan,
+                       ConsultationVisibility visibility) {
+        if (consultationDate != null) {
+            this.consultationDate = consultationDate;
+        }
+        if (content != null) {
+            this.content = content;
+        }
+        // nextPlan 은 의도적으로 빈 문자열 → null 로 비울 수 있도록 분기.
+        if (nextPlan != null) {
+            this.nextPlan = nextPlan.isBlank() ? null : nextPlan;
+        }
+        if (visibility != null) {
+            this.visibility = visibility;
+        }
     }
 
     // 작성자 본인 여부

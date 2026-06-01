@@ -1,0 +1,17 @@
+# 개발 프로파일 — 활성화: SPRING_PROFILES_ACTIVE=dev (또는 spring.profiles.active=dev).
+# 운영 환경에서는 절대 활성화하지 말 것. 평문 SQL/파라미터·DEBUG 보안 로그가 노출되어 민감정보가 stdout으로 흐른다.
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # 파라미터 바인딩까지 보고 싶다면 아래 logging 레벨 조정으로 활성(쿼리 SQL은 show-sql 이 처리).
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    # 필요 시 활성:
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE
+# 데모 데이터 시딩은 application.yml 기본값(비-운영 ON)을 그대로 사용한다.

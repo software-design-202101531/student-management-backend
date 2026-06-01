@@ -1,5 +1,6 @@
 package com.school.studentmanagement.grade.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.GradeLevel;
 import com.school.studentmanagement.student.entity.Student;
 import jakarta.persistence.*;
@@ -20,7 +21,7 @@ import lombok.NoArgsConstructor;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StudentSemesterStat {
+public class StudentSemesterStat extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

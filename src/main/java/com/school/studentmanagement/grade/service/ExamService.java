@@ -5,8 +5,10 @@ import com.school.studentmanagement.global.exception.ErrorCode;
 import com.school.studentmanagement.grade.dto.ExamCreateRequest;
 import com.school.studentmanagement.grade.dto.ExamResponse;
 import com.school.studentmanagement.grade.entity.Exam;
+import com.school.studentmanagement.grade.event.ExamPublishedEvent;
 import com.school.studentmanagement.grade.repository.ExamRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import java.util.List;
 public class ExamService {
 
     private final ExamRepository examRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ExamResponse createExam(ExamCreateRequest request) {
@@ -57,6 +60,8 @@ public class ExamService {
             throw new BusinessException(ErrorCode.EXAM_ALREADY_PUBLISHED);
         }
         exam.publish();
+        // 커밋 이후(AFTER_COMMIT) 비동기로 학생/학부모에게 성적 발행 알림을 생성한다.
+        eventPublisher.publishEvent(new ExamPublishedEvent(exam.getId()));
     }
 
     @Transactional

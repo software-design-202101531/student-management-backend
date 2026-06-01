@@ -1,7 +1,6 @@
 package com.school.studentmanagement.student.service;
 
 import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
-import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.exception.ErrorCode;
 import com.school.studentmanagement.student.dto.StudentActivationRequest;
@@ -39,16 +38,25 @@ public class StudentService {
 
     @Transactional
     public void activateStudentAccount(StudentActivationRequest request) {
-        User user = userRepository.findById(request.getId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        // 클라이언트가 보낸 PK를 신뢰하지 않고, 신원정보로 가입대기 학생을 직접 찾아 활성화한다.
+        // (PK만으로 임의 계정을 활성화하던 계정 탈취 경로를 차단)
+        User user = affiliationRepository.findPendingStudentUser(
+                request.getAcademicYear(),
+                request.getGrade(),
+                request.getClassNum(),
+                request.getStudentNum(),
+                request.getName()
+        ).orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_VERIFY_FAILED));
 
-        Student student = studentRepository.findById(request.getId())
+        Student student = studentRepository.findById(user.getId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
 
-        if (user.getStatus() != UserStatus.PENDING) {
-            throw new BusinessException(ErrorCode.ACCOUNT_ALREADY_ACTIVE);
+        // 아이디 중복 시 DB 제약 위반(500) 대신 친화적인 409 응답
+        if (userRepository.findByLoginId(request.getLoginId()).isPresent()) {
+            throw new BusinessException(ErrorCode.LOGIN_ID_DUPLICATED);
         }
 
+        // 활성화 가능 여부(PENDING) 검증은 User.activateAccount 내부에서 수행한다
         user.activateAccount(
                 request.getLoginId(),
                 passwordEncoder.encode(request.getPassword())

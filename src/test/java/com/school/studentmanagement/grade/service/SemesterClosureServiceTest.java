@@ -30,6 +30,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -55,6 +56,7 @@ class SemesterClosureServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private SemesterStatRecalculator semesterStatRecalculator;
     @Mock private AcademicCalendarUtil academicCalendarUtil;
+    @Mock private ObjectProvider<SemesterClosureService> selfProvider;
 
     // 픽스처
     private Subject mathSubject;
@@ -245,6 +247,8 @@ class SemesterClosureServiceTest {
         @Test
         @DisplayName("성공: isModifiable=false + 미마감 학기만 AUTO 마감")
         void autoClose_onlyExpiredAndOpen() {
+            // 일괄 마감은 자기 프록시를 통해 학기별 autoClose를 호출한다
+            given(selfProvider.getObject()).willReturn(semesterClosureService);
             given(examRepository.findAllDistinctSemesters()).willReturn(List.of(
                     semKey(2024, 1),  // 마감일 지남, 미마감 → close
                     semKey(2025, 1),  // 마감일 안 지남 → skip

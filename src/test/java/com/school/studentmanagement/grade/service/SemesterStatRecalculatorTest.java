@@ -93,17 +93,35 @@ class SemesterStatRecalculatorTest {
     }
 
     @Test
-    @DisplayName("성공: 과목별 점수가 비어있으면 stat 갱신 없음 (early return)")
-    void refresh_noSubjectScores_earlyReturn() {
+    @DisplayName("성공: 과목 점수가 비고 기존 stat이 없으면 save/delete 없음")
+    void refresh_noSubjectScores_noExistingStat() {
         given(studentGradeRepository.aggregateSubjectScoresByStudentAndSemester(1L, 2026, 1))
                 .willReturn(List.of());
+        given(semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(1L, 2026, 1))
+                .willReturn(Optional.empty());
 
         recalculator.refresh(student, 2026, 1);
 
         verify(semesterStatRepository, never()).save(org.mockito.ArgumentMatchers.any());
-        verify(semesterStatRepository, never())
-                .findByStudentIdAndAcademicYearAndSemester(org.mockito.ArgumentMatchers.any(),
-                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(semesterStatRepository, never()).delete(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("성공: 과목 점수가 비고 기존 stat이 있으면 삭제 (stale 방지)")
+    void refresh_noSubjectScores_deletesStaleStat() {
+        StudentSemesterStat existing = StudentSemesterStat.builder()
+                .student(student).academicYear(2026).semester(1)
+                .totalScore(80.0).averageScore(80.0).gradeLevel(GradeLevel.B)
+                .build();
+        given(studentGradeRepository.aggregateSubjectScoresByStudentAndSemester(1L, 2026, 1))
+                .willReturn(List.of());
+        given(semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(1L, 2026, 1))
+                .willReturn(Optional.of(existing));
+
+        recalculator.refresh(student, 2026, 1);
+
+        verify(semesterStatRepository).delete(existing);
+        verify(semesterStatRepository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 
     private SubjectScoreAggregation agg(Long subjectId, Double subjectScore) {

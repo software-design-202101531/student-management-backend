@@ -31,7 +31,12 @@ public class SemesterStatRecalculator {
         List<SubjectScoreAggregation> subjectScores = studentGradeRepository
                 .aggregateSubjectScoresByStudentAndSemester(student.getId(), academicYear, semester);
 
-        if (subjectScores.isEmpty()) return;
+        // 집계 대상 성적이 모두 사라진 경우(전부 ABSENT/삭제) 기존 통계를 제거해 stale 데이터를 방지
+        if (subjectScores.isEmpty()) {
+            semesterStatRepository.findByStudentIdAndAcademicYearAndSemester(student.getId(), academicYear, semester)
+                    .ifPresent(semesterStatRepository::delete);
+            return;
+        }
 
         double total = subjectScores.stream()
                 .mapToDouble(SubjectScoreAggregation::getSubjectScore)

@@ -1,5 +1,6 @@
 package com.school.studentmanagement.parent.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.student.entity.Student;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -10,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "parent_student_mapping")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ParentStudentMapping {
+public class ParentStudentMapping extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

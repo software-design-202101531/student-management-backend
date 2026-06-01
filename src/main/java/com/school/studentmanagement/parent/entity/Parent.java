@@ -1,6 +1,8 @@
 package com.school.studentmanagement.parent.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.RelationType;
+import com.school.studentmanagement.global.security.encryption.AesRandomStringConverter;
 import com.school.studentmanagement.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -12,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "parents")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Parent {
+public class Parent extends BaseTimeEntity {
 
     @Id
     private Long id;
@@ -22,7 +24,9 @@ public class Parent {
     @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(nullable = false)
+    // PII — 컬럼 레벨 암호화(AES, 랜덤 IV). 검색 미사용.
+    @Convert(converter = AesRandomStringConverter.class)
+    @Column(nullable = false, length = 255)
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)

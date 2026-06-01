@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface ParentInvitationRepository extends JpaRepository<ParentInvitation, Long> {
@@ -18,13 +19,15 @@ public interface ParentInvitationRepository extends JpaRepository<ParentInvitati
             "AND c.classNum = :classNum " +
             "AND sa.studentNum = :studentNum " +
             "AND u.name = :studentName " +
-            "AND pi.phoneNumber = :parentPhone")
+            "AND pi.phoneNumber = :parentPhone " +
+            "AND pi.createdAt >= :validFrom")
     Optional<ParentInvitation> findValidInvitation(
             @Param("year") Integer year,
             @Param("grade") Integer grade,
             @Param("classNum") Integer classNum,
             @Param("studentNum") Integer studentNum,
             @Param("studentName") String studentName,
-            @Param("parentPhone") String parentPhone
+            @Param("parentPhone") String parentPhone,
+            @Param("validFrom") LocalDateTime validFrom
     );
 }

@@ -1,5 +1,6 @@
 package com.school.studentmanagement.attendance.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.DayType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -13,7 +14,7 @@ import java.time.LocalDate;
 @Table(name = "academic_calendars")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class AcademicCalendar {
+public class AcademicCalendar extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

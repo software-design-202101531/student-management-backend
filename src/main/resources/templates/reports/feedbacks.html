@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Nanum Gothic', sans-serif; color: #1e293b; font-size: 12px; }
+        h1 { font-size: 20px; margin: 0 0 4px 0; }
+        p.meta { color: #64748b; margin: 0 0 10px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; }
+        th { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+<h1>피드백 요약</h1>
+<p class="meta">학생 #<span th:text="${studentId}">0</span> · 총 <span th:text="${#lists.size(items)}">0</span>건</p>
+
+<table>
+    <thead>
+    <tr><th>작성일</th><th>작성교사</th><th>분류</th><th>공개</th><th>상태</th><th>내용</th></tr>
+    </thead>
+    <tbody>
+    <tr th:each="f : ${items}">
+        <td th:text="${f.createdAt}">-</td>
+        <td th:text="${f.teacherName}">-</td>
+        <td th:text="${f.categoryLabel}">-</td>
+        <td th:text="${f.isPublic()} ? '공개' : '비공개'">-</td>
+        <td th:text="${f.status}">-</td>
+        <td th:text="${f.content}">-</td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

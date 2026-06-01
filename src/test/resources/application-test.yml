@@ -1,0 +1,38 @@
+# 통합 테스트 프로필. datasource(url/user/pw)는 Testcontainers가 @DynamicPropertySource로 덮어쓴다.
+# 나머지는 application.yml의 ${ENV} placeholder 해소를 위한 테스트 더미 값.
+
+# --- application.yml이 요구하는 환경변수 placeholder 값 ---
+DB_USER: test
+DB_PASSWORD: test
+RABBITMQ_USER: guest
+RABBITMQ_PASSWORD: guest
+# HS256용 Base64 시크릿(디코드 시 48바이트 ≥ 256bit)
+JWT_SECRET: "I6KrhX/S+V7RXp3D+CCrubXmtS4+hFrMUsFzlQe0AhojDZHVaSNKvMkQc1ycKeRt"
+JWT_ACCESS_EXPIRATION: 3600000
+JWT_REFRESH_EXPIRATION: 86400000
+APP_ENCRYPTION_PASSWORD: integration-test-password
+APP_ENCRYPTION_SALT: "0123456789abcdef"
+MINIO_ROOT_USER: testminio
+MINIO_ROOT_PASSWORD: testminio123
+
+# 통합 테스트는 각자 필요한 데이터를 직접 준비하므로 데모 시딩을 끈다(시드/ETL 오염 방지).
+app:
+  demo:
+    enabled: false
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  # Redis/RabbitMQ/MinIO는 lazy 연결이라 미기동이어도 컨텍스트 기동에는 영향 없음(export 테스트에서 미사용)
+  data:
+    redis:
+      host: localhost
+      port: 6380
+  # 분석 RabbitMQ 리스너는 테스트에서 비활성(브로커 자격증명/연결 불필요).
+  # 컨슈머 디스패치는 AnalyticsEtlConsumerTest(Mockito), ETL은 직접 호출로 검증한다.
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false

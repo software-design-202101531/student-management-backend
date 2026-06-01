@@ -70,15 +70,17 @@ class StudentServiceTest {
     class ActivateStudentAccountTest {
 
         @Test
-        @DisplayName("성공: User 계정 활성화 및 Student 상세 정보 동시 업데이트")
+        @DisplayName("성공: 신원 재검증 후 User 활성화 및 Student 상세 정보 동시 업데이트")
         void activateStudentAccount_Success() {
             User pendingUser = User.builder().id(1L).name("홍길동").gender(Gender.MALE)
                     .role(UserRole.STUDENT).status(UserStatus.PENDING).build();
             Student student = Student.builder().id(1L).user(pendingUser).enrollmentYear(2026).build();
-            StudentActivationRequest request = buildRequest(1L, "hong2026", "pass1234!", "서울시 강남구", "01012345678");
+            StudentActivationRequest request = buildRequest("hong2026", "pass1234!", "서울시 강남구", "01012345678");
 
-            given(userRepository.findById(1L)).willReturn(Optional.of(pendingUser));
+            given(affiliationRepository.findPendingStudentUser(any(), any(), any(), any(), any()))
+                    .willReturn(Optional.of(pendingUser));
             given(studentRepository.findById(1L)).willReturn(Optional.of(student));
+            given(userRepository.findByLoginId("hong2026")).willReturn(Optional.empty());
             given(passwordEncoder.encode("pass1234!")).willReturn("encodedPass");
 
             studentService.activateStudentAccount(request);
@@ -90,49 +92,61 @@ class StudentServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 이미 활성화된 계정 → BusinessException")
-        void activateStudentAccount_Fail_AlreadyActive() {
-            User activeUser = User.builder().id(1L).name("홍길동").gender(Gender.MALE)
-                    .role(UserRole.STUDENT).status(UserStatus.ACTIVE).build();
-            Student student = Student.builder().id(1L).user(activeUser).enrollmentYear(2026).build();
-            StudentActivationRequest request = buildRequest(1L, "id", "pw", null, null);
+        @DisplayName("실패: 신원과 일치하는 가입대기 학생이 없으면(또는 이미 활성) → STUDENT_VERIFY_FAILED")
+        void activateStudentAccount_Fail_NoMatchingPendingStudent() {
+            given(affiliationRepository.findPendingStudentUser(any(), any(), any(), any(), any()))
+                    .willReturn(Optional.empty());
 
-            given(userRepository.findById(1L)).willReturn(Optional.of(activeUser));
-            given(studentRepository.findById(1L)).willReturn(Optional.of(student));
-
-            assertThatThrownBy(() -> studentService.activateStudentAccount(request))
+            assertThatThrownBy(() -> studentService.activateStudentAccount(
+                    buildRequest("hong2026", "pass1234!", "서울시 강남구", "01012345678")))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("이미 활성화된 계정입니다");
+                    .hasMessage("입력하신 정보와 일치하는 가입 대기 정보가 없습니다");
         }
 
         @Test
-        @DisplayName("실패: 존재하지 않는 User ID → BusinessException")
-        void activateStudentAccount_Fail_UserNotFound() {
-            given(userRepository.findById(999L)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> studentService.activateStudentAccount(buildRequest(999L, "id", "pw", null, null)))
-                    .isInstanceOf(BusinessException.class)
-                    .hasMessage("유효하지 않은 사용자입니다");
-        }
-
-        @Test
-        @DisplayName("실패: 존재하지 않는 Student ID → BusinessException")
+        @DisplayName("실패: 대기 User는 있으나 Student 정보가 없으면 → STUDENT_NOT_FOUND")
         void activateStudentAccount_Fail_StudentNotFound() {
             User pendingUser = User.builder().id(1L).name("홍길동").gender(Gender.MALE)
                     .role(UserRole.STUDENT).status(UserStatus.PENDING).build();
 
-            given(userRepository.findById(1L)).willReturn(Optional.of(pendingUser));
+            given(affiliationRepository.findPendingStudentUser(any(), any(), any(), any(), any()))
+                    .willReturn(Optional.of(pendingUser));
             given(studentRepository.findById(1L)).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> studentService.activateStudentAccount(buildRequest(1L, "id", "pw", null, null)))
+            assertThatThrownBy(() -> studentService.activateStudentAccount(
+                    buildRequest("hong2026", "pass1234!", "서울시 강남구", "01012345678")))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("유효하지 않은 학생 정보입니다");
         }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 로그인 아이디 → LOGIN_ID_DUPLICATED")
+        void activateStudentAccount_Fail_LoginIdDuplicated() {
+            User pendingUser = User.builder().id(1L).name("홍길동").gender(Gender.MALE)
+                    .role(UserRole.STUDENT).status(UserStatus.PENDING).build();
+            Student student = Student.builder().id(1L).user(pendingUser).enrollmentYear(2026).build();
+            User existing = User.builder().id(2L).loginId("hong2026").name("기존").gender(Gender.MALE)
+                    .role(UserRole.STUDENT).status(UserStatus.ACTIVE).build();
+
+            given(affiliationRepository.findPendingStudentUser(any(), any(), any(), any(), any()))
+                    .willReturn(Optional.of(pendingUser));
+            given(studentRepository.findById(1L)).willReturn(Optional.of(student));
+            given(userRepository.findByLoginId("hong2026")).willReturn(Optional.of(existing));
+
+            assertThatThrownBy(() -> studentService.activateStudentAccount(
+                    buildRequest("hong2026", "pass1234!", "서울시 강남구", "01012345678")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("이미 사용 중인 아이디입니다");
+        }
     }
 
-    private StudentActivationRequest buildRequest(Long id, String loginId, String pw, String address, String phone) {
+    private StudentActivationRequest buildRequest(String loginId, String pw, String address, String phone) {
         StudentActivationRequest req = new StudentActivationRequest();
-        ReflectionTestUtils.setField(req, "id", id);
+        ReflectionTestUtils.setField(req, "academicYear", 2026);
+        ReflectionTestUtils.setField(req, "grade", 1);
+        ReflectionTestUtils.setField(req, "classNum", 3);
+        ReflectionTestUtils.setField(req, "studentNum", 15);
+        ReflectionTestUtils.setField(req, "name", "홍길동");
         ReflectionTestUtils.setField(req, "loginId", loginId);
         ReflectionTestUtils.setField(req, "password", pw);
         ReflectionTestUtils.setField(req, "address", address);

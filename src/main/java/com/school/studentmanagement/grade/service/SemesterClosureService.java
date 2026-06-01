@@ -22,7 +22,10 @@ import com.school.studentmanagement.subject.repository.SubjectAssignmentReposito
 import com.school.studentmanagement.user.entity.User;
 import com.school.studentmanagement.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -34,6 +37,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SemesterClosureService {
@@ -46,6 +50,8 @@ public class SemesterClosureService {
     private final UserRepository userRepository;
     private final SemesterStatRecalculator semesterStatRecalculator;
     private final AcademicCalendarUtil academicCalendarUtil;
+    // 자기 자신의 프록시 (스케줄러 일괄 마감 시 학기별 독립 트랜잭션을 위해 사용)
+    private final ObjectProvider<SemesterClosureService> selfProvider;
 
     // ─── 상태 조회 ───────────────────────────────────────────────────────────
 
@@ -142,7 +148,9 @@ public class SemesterClosureService {
 
     // ─── 자동 fallback (scheduler 진입점) ────────────────────────────────────
 
-    @Transactional
+    // 일괄 마감은 하나의 트랜잭션으로 묶지 않는다. 학기별 autoClose를 프록시로 호출해
+    // 각자 독립 트랜잭션으로 실행하고, 한 학기 실패가 나머지를 롤백하지 않도록 한다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public int autoCloseExpired() {
         List<ExamRepository.SemesterKey> all = examRepository.findAllDistinctSemesters();
         int closedCount = 0;
@@ -151,8 +159,13 @@ public class SemesterClosureService {
             int sem = key.getSemester();
             if (academicCalendarUtil.isModifiable(year)) continue;
             if (isClosed(year, sem)) continue;
-            autoClose(year, sem);
-            closedCount++;
+            try {
+                // 프록시 경유 호출이어야 autoClose의 @Transactional이 학기별로 적용된다
+                selfProvider.getObject().autoClose(year, sem);
+                closedCount++;
+            } catch (Exception e) {
+                log.error("[학기 자동마감] {}년 {}학기 마감 실패", year, sem, e);
+            }
         }
         return closedCount;
     }

@@ -46,25 +46,31 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
+    // 토큰 종류 (access 토큰을 refresh로 악용하거나 그 반대를 막기 위한 type 클레임)
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
+
     // 엑세스 토큰 생성
     public String createAccessToken(Long userId, String role) {
-        return createToken(userId, role, accessExpirationTime);
+        return createToken(userId, role, accessExpirationTime, TYPE_ACCESS);
     }
 
     // 리프레시 토큰 생성
     public String createRefreshToken(Long userId, String role) {
-        return createToken(userId, role, refreshExpirationTime);
+        return createToken(userId, role, refreshExpirationTime, TYPE_REFRESH);
     }
 
     // 토큰 생성 공용 메서드
-    public String createToken(Long userId, String role, long valiTime) {
+    private String createToken(Long userId, String role, long valiTime, String type) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + valiTime);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("role", role)
+                .claim("type", type)
                 .issuedAt(now)
+                .expiration(expiration)
                 .signWith(key)
                 .compact();
     }
@@ -75,20 +81,43 @@ public class JwtTokenProvider {
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }
 
-
-    // 서비스 로직에서 사용할 pk 추출 메서드
+    // 토큰에서 사용자 PK 추출
     public Long getUserId(String token) {
-        return Long.parseLong(getUserIdAsString(token));
+        return Long.parseLong(getClaims(token).getSubject());
+    }
+
+    // 토큰에서 role 클레임 추출
+    public String getRole(String token) {
+        return getClaims(token).get("role", String.class);
+    }
+
+    // 토큰이 access 타입인지 여부 (API 접근 필터에서 refresh 토큰 거부용)
+    public boolean isAccessToken(String token) {
+        return TYPE_ACCESS.equals(getClaims(token).get("type", String.class));
+    }
+
+    // 토큰이 refresh 타입인지 여부
+    public boolean isRefreshToken(String token) {
+        return TYPE_REFRESH.equals(getClaims(token).get("type", String.class));
+    }
+
+    // 리프레시 토큰 만료 시간(ms) — Redis 저장 TTL 용도
+    public long getRefreshExpirationMillis() {
+        return refreshExpirationTime;
     }
 
     // 토큰 파싱 및 pk 추출
     private String getUserIdAsString(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    // 서명 검증 후 클레임 추출
+    private io.jsonwebtoken.Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
-                .getPayload()
-                .getSubject();
+                .getPayload();
     }
 
 
@@ -101,11 +130,15 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch(SecurityException | MalformedJwtException e) {
-            log.info("잘못된 JWT 서명입니다", e);
+            // 스택트레이스/예외 메시지에 claim 일부가 노출될 수 있어 메시지만 남긴다. 디버깅 필요 시 DEBUG 레벨로 자세히.
+            log.info("잘못된 JWT 서명입니다");
+            log.debug("잘못된 JWT 서명 상세", e);
         } catch(ExpiredJwtException e) {
-            log.info("만료된 JWT 토큰입니다", e);
+            log.info("만료된 JWT 토큰입니다");
+            log.debug("만료된 JWT 상세", e);
         } catch(UnsupportedJwtException e) {
-            log.info("지원되지 않는 JWT 토큰입니다", e);
+            log.info("지원되지 않는 JWT 토큰입니다");
+            log.debug("지원되지 않는 JWT 상세", e);
         } catch(IllegalArgumentException e) {
             log.info("JWT 토큰이 비어있거나 잘못되었습니다");
         }

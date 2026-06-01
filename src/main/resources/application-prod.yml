@@ -1,0 +1,36 @@
+# 운영(prod) 프로필. 활성화: SPRING_PROFILES_ACTIVE=prod
+# 핵심 전환점: 스키마를 Hibernate(ddl-auto)가 아니라 Flyway가 소유하고,
+#             Hibernate는 검증(validate)만 한다 → 재기동/배포에도 데이터 보존.
+# (데모 시딩은 기본 비활성 — DEMO_SEED_ENABLED=true 일 때만 빈 DB에 데모 데이터가 적재된다.)
+spring:
+  jpa:
+    hibernate:
+      # 운영: 스키마 생성/변경 금지. 엔티티-스키마 불일치만 검출하고 실패시키기.
+      ddl-auto: validate
+    show-sql: false
+
+  # Flyway 가 운영 public 스키마(baseline) + analytics(OLAP) 스키마를 모두 적용한다.
+  # db/prod-migration 은 dev/test 가 로드하지 않는 위치(기본 db/migration 재귀 스캔 밖) →
+  # 개발의 ddl-auto:create 와 충돌하지 않는다.
+  flyway:
+    locations: classpath:db/migration,classpath:db/prod-migration
+
+  # 운영은 외래키 제약을 강제한다(개발 전용 replica 우회를 명시적으로 해제).
+  datasource:
+    hikari:
+      connection-init-sql: "SET session_replication_role = 'origin'"
+
+app:
+  cookie:
+    # 운영은 HTTPS 전제 → refresh 토큰 쿠키 Secure 강제(기본 true, 필요시 COOKIE_SECURE 로 조정)
+    secure: ${COOKIE_SECURE:true}
+  # 최초 관리자 부트스트랩(ProdAdminInitializer): ADMIN 이 0명일 때만 1회 생성.
+  # 자격증명을 비워두면 생성하지 않고 경고만 남긴다(운영자가 환경변수로 주입).
+  admin:
+    login-id: ${ADMIN_LOGIN_ID:}
+    password: ${ADMIN_PASSWORD:}
+    name: ${ADMIN_NAME:운영관리자}
+  # 데모 데이터 시딩(DemoDataInitializer): true 일 때 빈 DB에 전 도메인 데모 데이터 + 분석 ETL 적재.
+  # 시연용 1회성 토글 — 데모가 끝나면 false 로 되돌리는 것을 권장(멱등이라 데이터가 있으면 어차피 건너뜀).
+  demo:
+    enabled: ${DEMO_SEED_ENABLED:false}

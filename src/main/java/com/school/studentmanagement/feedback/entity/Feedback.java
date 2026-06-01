@@ -1,5 +1,6 @@
 package com.school.studentmanagement.feedback.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.FeedbackCategory;
 import com.school.studentmanagement.global.enums.FeedbackStatus;
 import com.school.studentmanagement.student.entity.Student;
@@ -9,13 +10,11 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "feedbacks")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Feedback {
+public class Feedback extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,9 +35,8 @@ public class Feedback {
     @Column(nullable = false, length = 20)
     private FeedbackCategory category;
 
-    // 본문 (글자 수 제한 없는 대용량 텍스트)
-    @Lob
-    @Column(nullable = false)
+    // 본문 (글자 수 제한 없는 대용량 텍스트) — TEXT로 매핑(@Lob은 oid가 되어 네이티브 SQL·문자열 함수에서 타입 문제 발생).
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     // 작성 상태 (임시저장/발행 완료) — 데이터 생명주기
@@ -50,11 +48,7 @@ public class Feedback {
     @Column(nullable = false)
     private boolean isPublic;
 
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    // createdAt/updatedAt은 BaseTimeEntity(JPA Auditing)가 관리
 
     private Feedback(Teacher teacher, Student student, FeedbackCategory category, String content, boolean isPublic) {
         this.teacher = teacher;
@@ -63,8 +57,6 @@ public class Feedback {
         this.content = content;
         this.status = FeedbackStatus.DRAFT; // 최초 작성 시 항상 임시저장 상태
         this.isPublic = isPublic;
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = this.createdAt;
     }
 
     // 생성 (status = DRAFT 고정)
@@ -77,13 +69,11 @@ public class Feedback {
         this.category = category;
         this.content = content;
         this.isPublic = isPublic;
-        this.updatedAt = LocalDateTime.now();
     }
 
     // 최종 발행 (DRAFT -> PUBLISHED)
     public void publish() {
         this.status = FeedbackStatus.PUBLISHED;
-        this.updatedAt = LocalDateTime.now();
     }
 
     // 작성자 본인 여부 검증용

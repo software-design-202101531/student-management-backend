@@ -16,5 +16,12 @@ public interface AcademicCalendarRepository extends JpaRepository<AcademicCalend
             "AND ac.dayType != 'WEEKDAY'")
     List<AcademicCalendar> findHolidaysByYearAndMonth(@Param("year") int year, @Param("month") int month);
 
+    // 기간 단위 휴일 조회 — 학생 단위 출결 조회에서 사용
+    @Query("SELECT ac FROM AcademicCalendar ac " +
+            "WHERE ac.date BETWEEN :from AND :to " +
+            "AND ac.dayType != 'WEEKDAY' " +
+            "ORDER BY ac.date ASC")
+    List<AcademicCalendar> findHolidaysByDateBetween(@Param("from") LocalDate from, @Param("to") LocalDate to);
+
     Optional<AcademicCalendar> findByDate(LocalDate date);
 }

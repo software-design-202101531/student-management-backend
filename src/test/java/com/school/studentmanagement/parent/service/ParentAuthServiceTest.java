@@ -75,7 +75,7 @@ class ParentAuthServiceTest {
         @Test
         @DisplayName("성공: 유효한 초대 정보로 invitationId 반환")
         void verifyParent_Success() {
-            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any()))
+            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any(), any()))
                     .willReturn(Optional.of(fatherInvitation));
 
             Long result = parentAuthService.verifyParent(new VerifyParentRequest());
@@ -86,7 +86,7 @@ class ParentAuthServiceTest {
         @Test
         @DisplayName("실패: 일치하는 초대 정보가 없으면 BusinessException")
         void verifyParent_Fail_InvalidInfo() {
-            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any()))
+            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any(), any()))
                     .willReturn(Optional.empty());
 
             assertThatThrownBy(() -> parentAuthService.verifyParent(new VerifyParentRequest()))
@@ -100,16 +100,17 @@ class ParentAuthServiceTest {
     class RegisterParentTest {
 
         @Test
-        @DisplayName("성공(FATHER): 부 관계 초대장으로 MALE 계정 생성, 매핑 저장, 초대장 삭제")
+        @DisplayName("성공(FATHER): 신원 재검증 후 부 관계 초대장으로 MALE 계정 생성, 매핑 저장, 초대장 삭제")
         void registerParent_Success_Father() {
-            ParentRegisterRequest request = buildRegisterRequest(INVITATION_ID, "parent01", "pass1234!", "홍아버지");
+            ParentRegisterRequest request = buildRegisterRequest("parent01", "pass1234!", "홍아버지");
             User savedUser = User.builder().id(99L).loginId("parent01").name("홍아버지")
                     .gender(Gender.MALE).role(UserRole.PARENT).status(UserStatus.ACTIVE).build();
 
-            given(invitationRepository.findById(INVITATION_ID)).willReturn(Optional.of(fatherInvitation));
+            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any(), any()))
+                    .willReturn(Optional.of(fatherInvitation));
+            given(userRepository.findByLoginId("parent01")).willReturn(Optional.empty());
             given(passwordEncoder.encode("pass1234!")).willReturn("encoded");
             given(userRepository.save(any())).willReturn(savedUser);
-            given(parentRepository.save(any())).willReturn(any());
             given(studentRepository.findById(STUDENT_ID)).willReturn(Optional.of(student));
 
             parentAuthService.registerParent(request);
@@ -123,11 +124,13 @@ class ParentAuthServiceTest {
         @Test
         @DisplayName("성공(MOTHER): 모 관계 초대장으로 FEMALE 계정 생성")
         void registerParent_Success_Mother() {
-            ParentRegisterRequest request = buildRegisterRequest(INVITATION_ID + 1, "parent02", "pass1234!", "홍어머니");
+            ParentRegisterRequest request = buildRegisterRequest("parent02", "pass1234!", "홍어머니");
             User savedUser = User.builder().id(100L).loginId("parent02").name("홍어머니")
                     .gender(Gender.FEMALE).role(UserRole.PARENT).status(UserStatus.ACTIVE).build();
 
-            given(invitationRepository.findById(INVITATION_ID + 1)).willReturn(Optional.of(motherInvitation));
+            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any(), any()))
+                    .willReturn(Optional.of(motherInvitation));
+            given(userRepository.findByLoginId("parent02")).willReturn(Optional.empty());
             given(passwordEncoder.encode(any())).willReturn("encoded");
             given(userRepository.save(any())).willReturn(savedUser);
             given(studentRepository.findById(STUDENT_ID)).willReturn(Optional.of(student));
@@ -138,20 +141,42 @@ class ParentAuthServiceTest {
         }
 
         @Test
-        @DisplayName("실패: 존재하지 않는 초대장 ID → BusinessException")
-        void registerParent_Fail_InvitationNotFound() {
-            given(invitationRepository.findById(999L)).willReturn(Optional.empty());
+        @DisplayName("실패: 신원과 일치하는 유효 초대장이 없으면(또는 만료) → PARENT_VERIFY_FAILED")
+        void registerParent_Fail_NoValidInvitation() {
+            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any(), any()))
+                    .willReturn(Optional.empty());
 
             assertThatThrownBy(() -> parentAuthService.registerParent(
-                    buildRegisterRequest(999L, "id", "pw", "이름")))
+                    buildRegisterRequest("parent01", "pass1234!", "홍아버지")))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("유효하지 않은 초대 정보입니다");
+                    .hasMessage("입력하신 정보가 올바르지 않습니다");
+        }
+
+        @Test
+        @DisplayName("실패: 이미 사용 중인 로그인 아이디 → LOGIN_ID_DUPLICATED")
+        void registerParent_Fail_LoginIdDuplicated() {
+            User existing = User.builder().id(50L).loginId("parent01").name("기존")
+                    .gender(Gender.MALE).role(UserRole.PARENT).status(UserStatus.ACTIVE).build();
+
+            given(invitationRepository.findValidInvitation(any(), any(), any(), any(), any(), any(), any()))
+                    .willReturn(Optional.of(fatherInvitation));
+            given(userRepository.findByLoginId("parent01")).willReturn(Optional.of(existing));
+
+            assertThatThrownBy(() -> parentAuthService.registerParent(
+                    buildRegisterRequest("parent01", "pass1234!", "홍아버지")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("이미 사용 중인 아이디입니다");
         }
     }
 
-    private ParentRegisterRequest buildRegisterRequest(Long id, String loginId, String password, String name) {
+    private ParentRegisterRequest buildRegisterRequest(String loginId, String password, String name) {
         ParentRegisterRequest req = new ParentRegisterRequest();
-        ReflectionTestUtils.setField(req, "id", id);
+        ReflectionTestUtils.setField(req, "year", 2026);
+        ReflectionTestUtils.setField(req, "grade", 1);
+        ReflectionTestUtils.setField(req, "classNum", 3);
+        ReflectionTestUtils.setField(req, "studentNum", 15);
+        ReflectionTestUtils.setField(req, "studentName", "홍길동");
+        ReflectionTestUtils.setField(req, "parentPhone", "01011112222");
         ReflectionTestUtils.setField(req, "loginId", loginId);
         ReflectionTestUtils.setField(req, "password", password);
         ReflectionTestUtils.setField(req, "name", name);

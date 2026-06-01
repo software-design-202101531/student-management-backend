@@ -36,6 +36,7 @@ class ClassroomStudentServiceTest {
     @Mock private StudentAffiliationRepository studentAffiliationRepository;
     @Mock private AcademicCalendarUtil academicCalendarUtil;
     @Mock private SubjectAssignmentRepository subjectAssignmentRepository;
+    @Mock private com.school.studentmanagement.global.storage.FileStorageService fileStorageService;
 
     private static final Long TEACHER_ID   = 100L;
     private static final Long CLASSROOM_ID = 200L;
@@ -118,7 +119,7 @@ class ClassroomStudentServiceTest {
         @DisplayName("성공: 수업 담당 반 학생 목록을 DTO 리스트로 반환")
         void getStudentsInClassroom_Success() {
             // Given
-            given(subjectAssignmentRepository.existsByTeacherIdAndClassroomIdAndYear(TEACHER_ID, CLASSROOM_ID, 2026, 1))
+            given(subjectAssignmentRepository.existsByTeacherIdAndClassroomIdAndAcademicYearAndSemester(TEACHER_ID, CLASSROOM_ID, 2026, 1))
                     .willReturn(true);
             given(studentAffiliationRepository.findAllByClassroomId(CLASSROOM_ID))
                     .willReturn(List.of(affiliation));
@@ -136,7 +137,7 @@ class ClassroomStudentServiceTest {
         @DisplayName("실패: 수업 담당 교사가 아닌 경우 → AccessDeniedException")
         void getStudentsInClassroom_Fail_NotSubjectTeacher() {
             // Given
-            given(subjectAssignmentRepository.existsByTeacherIdAndClassroomIdAndYear(TEACHER_ID, CLASSROOM_ID, 2026, 1))
+            given(subjectAssignmentRepository.existsByTeacherIdAndClassroomIdAndAcademicYearAndSemester(TEACHER_ID, CLASSROOM_ID, 2026, 1))
                     .willReturn(false);
 
             // When & Then

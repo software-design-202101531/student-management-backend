@@ -1,5 +1,6 @@
 package com.school.studentmanagement.attendance.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.AttendanceStatus;
 import com.school.studentmanagement.student.entity.Student;
 import com.school.studentmanagement.teacher.entity.Teacher;
@@ -22,7 +23,7 @@ import java.time.LocalDate;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Attendance {
+public class Attendance extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,7 +48,7 @@ public class Attendance {
     private AttendanceStatus status;
 
     // 결석, 지각 사유
-    @Column(length = 20)
+    @Column(length = 255)
     private String reason;
 
     @Builder

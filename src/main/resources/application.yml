@@ -10,14 +10,21 @@ spring:
     hikari:
       connection-init-sql: "SET session_replication_role = 'replica'"  # 개발 시 한정 (FK 체크 우회)
 
-  # JPA 설정
+  # Flyway — analytics(OLAP) 스키마/테이블만 마이그레이션으로 관리.
+  # 운영 public 테이블은 ddl-auto가 관리하므로, 기존 비어있지 않은 스키마에서도 동작하도록 baseline 허용(버전 0).
+  # 분석 테이블은 @Entity로 매핑하지 않으므로 ddl-auto가 손대지 않아 재기동에도 보존된다.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+
+  # JPA 설정 — 기본은 운영 안전값. show-sql/format_sql 은 application-dev.yml 에서만 활성.
   jpa:
     hibernate:
       ddl-auto: create # 개발 시 한정
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc.batch_size: 50 # 엑셀 입력시 50개씩 묶어서 넣기
         order_inserts: true
@@ -28,12 +35,58 @@ spring:
       host: localhost
       port: 6380
 
+  # RabbitMQ 연결 설정
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        # 분석 컨슈머 처리 실패 시 재큐 대신 DLQ로 (무한 재처리 방지)
+        default-requeue-rejected: false
+
+  # 파일 업로드(멀티파트) 설정 — 프로필 사진 5MB 제한에 맞춰 상향 (기본값 1MB)
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
 # JWT 커스텀 설정
 jwt:
   secret: ${JWT_SECRET}
   access_expiration_time: ${JWT_ACCESS_EXPIRATION}
   refresh_expiration_time: ${JWT_REFRESH_EXPIRATION}
 
+# 애플리케이션 커스텀 설정
+app:
+  cookie:
+    # refresh 토큰 쿠키 Secure 속성 — 운영(HTTPS) 배포 시 COOKIE_SECURE=true 로 설정
+    secure: ${COOKIE_SECURE:false}
+  # 컬럼 레벨 암호화(JPA AttributeConverter)용 키. PII(phone/address/employeeNumber 등)에 AES-256-GCM 적용.
+  # password: 환경변수. 운영은 컨테이너 시크릿/시크릿 매니저로 주입 권장. 분실 시 데이터 복원 불가 — 백업 필수.
+  # salt: 16진수 hex 문자열(짝수 길이). 한 번 정해진 뒤 변경하면 기존 데이터 복호화 불가.
+  encryption:
+    password: ${APP_ENCRYPTION_PASSWORD}
+    salt: ${APP_ENCRYPTION_SALT}
+  # 데모 데이터 시딩(DemoDataInitializer). 비-운영(로컬/개발)은 기본 ON → 그냥 실행해도 시드된다.
+  # 운영(application-prod.yml)은 ${DEMO_SEED_ENABLED:false} 로 override(기본 OFF), 테스트는 application-test.yml 에서 OFF.
+  demo:
+    enabled: ${DEMO_SEED_ENABLED:true}
+
+# MinIO(S3 호환 스토리지) 연결 설정
+minio:
+  endpoint: http://localhost:9000          # S3 API 포트 (docker-compose minio)
+  region: us-east-1                        # MinIO는 미사용
+  access-key: ${MINIO_ROOT_USER}
+  secret-key: ${MINIO_ROOT_PASSWORD}
+  bucket: school-files                     # 사용할 기본 버킷명
+  presigned-url-ttl: 1h                    # 조회용 presigned URL 유효 시간
+
+# 로그 레벨 — 기본은 운영 안전값(INFO). 개발 환경에서는 application-dev.yml 에서 DEBUG 등으로 덮어쓴다.
+# 민감정보 마스킹(Bearer/Authorization/password 등)은 logback-spring.xml 의 패턴이 일괄 처리.
 logging:
   level:
-    org.springframework.security: DEBUG
+    root: INFO
+    com.school.studentmanagement: INFO
+    org.springframework.security: INFO

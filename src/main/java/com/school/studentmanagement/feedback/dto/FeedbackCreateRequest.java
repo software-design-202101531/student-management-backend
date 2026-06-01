@@ -3,6 +3,7 @@ package com.school.studentmanagement.feedback.dto;
 import com.school.studentmanagement.global.enums.FeedbackCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,6 +20,7 @@ public class FeedbackCreateRequest {
     private FeedbackCategory category;
 
     @NotBlank(message = "피드백 본문은 비어있을 수 없습니다")
+    @Size(max = 2000, message = "피드백 본문은 2000자 이내로 작성해주세요")
     private String content;
 
     // 미지정 시 비공개(false)로 처리

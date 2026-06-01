@@ -2,12 +2,11 @@ package com.school.studentmanagement.parent.service;
 
 import com.school.studentmanagement.classroom.entity.StudentAffiliation;
 import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
-import com.school.studentmanagement.global.exception.BusinessException;
-import com.school.studentmanagement.global.exception.ErrorCode;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.parent.dto.ChildInfoResponse;
 import com.school.studentmanagement.parent.entity.ParentStudentMapping;
 import com.school.studentmanagement.parent.repository.ParentStudentMappingRepository;
+import com.school.studentmanagement.parent.validator.ParentChildLinkValidator;
 import com.school.studentmanagement.student.dto.StudentMyAttendanceResponse;
 import com.school.studentmanagement.student.dto.StudentMyGradeResponse;
 import com.school.studentmanagement.student.dto.StudentMyRecordResponse;
@@ -30,6 +29,7 @@ public class ParentChildViewService {
     private final AcademicCalendarUtil academicCalendarUtil;
     private final StudentMyPageService studentMyPageService;
     private final StudentAttendanceService studentAttendanceService;
+    private final ParentChildLinkValidator parentChildLinkValidator;
 
     public List<ChildInfoResponse> getMyChildren(Long parentId) {
         int year = academicCalendarUtil.getCurrentAcademicYear();
@@ -58,23 +58,17 @@ public class ParentChildViewService {
     }
 
     public StudentMyGradeResponse getChildGrades(Long parentId, Long studentId, Integer academicYear, Integer semester) {
-        validateLinked(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return studentMyPageService.getMyGrades(studentId, academicYear, semester);
     }
 
     public StudentMyRecordResponse getChildRecords(Long parentId, Long studentId, Integer academicYear, Integer semester) {
-        validateLinked(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return studentMyPageService.getMyRecords(studentId, academicYear, semester);
     }
 
     public StudentMyAttendanceResponse getChildMonthlyAttendance(Long parentId, Long studentId, int year, int month) {
-        validateLinked(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return studentAttendanceService.getMyMonthlyAttendance(studentId, year, month);
-    }
-
-    private void validateLinked(Long parentId, Long studentId) {
-        if (!mappingRepository.existsByParentIdAndStudentId(parentId, studentId)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "연결된 자녀가 아닙니다");
-        }
     }
 }

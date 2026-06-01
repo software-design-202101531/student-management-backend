@@ -10,6 +10,7 @@ import com.school.studentmanagement.record.dto.BehaviorRecordRequest;
 import com.school.studentmanagement.record.dto.BehaviorRecordResponse;
 import com.school.studentmanagement.record.entity.StudentRecord;
 import com.school.studentmanagement.record.repository.StudentRecordRepository;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.teacher.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,9 @@ public class StudentRecordService {
         StudentAffiliation affiliation = studentAffiliationRepository.findWithAllDetails(studentId, year, semester)
                 .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_ASSIGNED));
 
-        if (!affiliation.getClassroom().getHomeroomTeacher().getId().equals(teacherId)) {
+        // 담임 미배정 학급(homeroomTeacher == null)일 수 있으므로 null 안전하게 검사한다
+        Teacher homeroomTeacher = affiliation.getClassroom().getHomeroomTeacher();
+        if (homeroomTeacher == null || !homeroomTeacher.getId().equals(teacherId)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "담당 학생이 아니기에 접근할 수 없습니다");
         }
 
@@ -70,25 +73,27 @@ public class StudentRecordService {
                     "해당 학년도의 행특 작성 및 수정 기간은 마감되었습니다");
         }
 
-        StudentAffiliation affiliation = validateHomeroomTeacherAuthority(studentId, teacherId, currentYear, currentSemester);
+        validateHomeroomTeacherAuthority(studentId, teacherId, currentYear, currentSemester);
 
-        studentRecordRepository.findByStudentIdAndRecordCategoryAndAcademicYearAndSemester(
-                studentId, RecordCategory.BEHAVIOR_OPINION, currentYear, currentSemester)
-                .ifPresentOrElse(
-                        existingRecord -> existingRecord.updateContent(
-                                request.getContent(),
-                                teacherRepository.getReferenceById(teacherId)
-                        ),
-                        () -> {
-                            StudentRecord newRecord = StudentRecord.createBehaviorOpinion(
-                                    affiliation.getStudent(),
-                                    teacherRepository.getReferenceById(teacherId),
-                                    currentYear,
-                                    currentSemester,
-                                    request.getContent()
-                            );
-                            studentRecordRepository.save(newRecord);
-                        }
-                );
+        // 기존 행특이 있으면 수정 — @Version 낙관적 락이 동시 수정 시 갱신 손실을 탐지해 409로 거부한다.
+        var existing = studentRecordRepository.findByStudentIdAndRecordCategoryAndAcademicYearAndSemester(
+                studentId, RecordCategory.BEHAVIOR_OPINION, currentYear, currentSemester);
+        if (existing.isPresent()) {
+            existing.get().updateContent(request.getContent(), teacherRepository.getReferenceById(teacherId));
+            return;
+        }
+
+        // 미존재 → 동시 최초 작성 경합에 안전한 삽입.
+        // ON CONFLICT DO NOTHING 은 예외를 던지지 않아 rollback-only 함정을 피한다(부분 유니크 인덱스가 전제).
+        int inserted = studentRecordRepository.insertBehaviorIfAbsent(
+                studentId, teacherId, currentYear, currentSemester, request.getContent());
+        if (inserted == 0) {
+            // 다른 교사가 한발 먼저 생성 → 이미 커밋된 행을 재조회해 일반 update 경로(@Version)로 수렴한다.
+            StudentRecord winner = studentRecordRepository
+                    .findByStudentIdAndRecordCategoryAndAcademicYearAndSemester(
+                            studentId, RecordCategory.BEHAVIOR_OPINION, currentYear, currentSemester)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RECORD_CONFLICT));
+            winner.updateContent(request.getContent(), teacherRepository.getReferenceById(teacherId));
+        }
     }
 }

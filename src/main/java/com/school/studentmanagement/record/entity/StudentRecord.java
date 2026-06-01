@@ -1,5 +1,6 @@
 package com.school.studentmanagement.record.entity;
 
+import com.school.studentmanagement.global.entity.BaseTimeEntity;
 import com.school.studentmanagement.global.enums.RecordCategory;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.student.entity.Student;
@@ -28,11 +29,15 @@ import lombok.NoArgsConstructor;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class StudentRecord {
+public class StudentRecord extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // 낙관적 락 — 동시 수정 시 갱신 손실(Lost Update)을 탐지해 나중 커밋을 거부(409)한다.
+    @Version
+    private Long version;
 
     // 기록의 대상(학생)
     @ManyToOne(fetch = FetchType.LAZY)
@@ -53,16 +58,20 @@ public class StudentRecord {
     private Integer semester;
 
     // 세특인지 행특인지 구분
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RecordCategory recordCategory;
 
-    // 세특은 필수, 행특은 Null(이로 인해 행특은 중복 위험 있음 처리할 것)
+    // 세특은 필수, 행특은 null.
+    // 행특(subject_id=NULL)은 전체 유니크 제약이 NULL을 중복으로 보지 않아 무력화되므로,
+    // 부분 유니크 인덱스(uk_behavior_record, WHERE subject_id IS NULL)로 학생·학기당 단건을 강제한다.
+    // (BehaviorRecordIndexInitializer가 생성, 운영은 Flyway로 관리 권장)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name ="subject_id")
+    @JoinColumn(name = "subject_id")
     private Subject subject;
 
-    @Lob // 대용량 텍스트 처리
-    @Column(nullable = false)
+    // 대용량 텍스트는 PostgreSQL TEXT로 매핑(@Lob은 oid/라지오브젝트가 되어 네이티브 upsert·문자열 함수에서 타입 문제 발생).
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     // 생성자

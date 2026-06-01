@@ -11,6 +11,10 @@ public interface ParentStudentMappingRepository extends JpaRepository<ParentStud
 
     boolean existsByParentIdAndStudentId(Long parentId, Long studentId);
 
+    // 특정 학생과 연결된 학부모 PK 목록 (알림 수신자 산출용). Parent PK == User PK.
+    @Query("SELECT psm.parent.id FROM ParentStudentMapping psm WHERE psm.student.id = :studentId")
+    List<Long> findParentIdsByStudentId(@Param("studentId") Long studentId);
+
     @Query("SELECT psm FROM ParentStudentMapping psm " +
             "JOIN psm.parent p " +
             "JOIN FETCH psm.student s " +

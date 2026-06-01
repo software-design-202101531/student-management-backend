@@ -6,6 +6,7 @@ import com.school.studentmanagement.classroom.repository.ClassRoomRepository;
 import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.exception.ErrorCode;
+import com.school.studentmanagement.analytics.repository.AnalyticsGradeQueryRepository;
 import com.school.studentmanagement.global.util.AcademicCalendarUtil;
 import com.school.studentmanagement.grade.dto.ClassroomRankingResponse;
 import com.school.studentmanagement.grade.dto.ClassroomStatsResponse;
@@ -17,7 +18,7 @@ import com.school.studentmanagement.grade.entity.StudentSemesterStat;
 import com.school.studentmanagement.grade.repository.ExamRepository;
 import com.school.studentmanagement.grade.repository.StudentGradeRepository;
 import com.school.studentmanagement.grade.repository.StudentSemesterStatRepository;
-import com.school.studentmanagement.parent.repository.ParentStudentMappingRepository;
+import com.school.studentmanagement.parent.validator.ParentChildLinkValidator;
 import com.school.studentmanagement.subject.entity.Subject;
 import com.school.studentmanagement.subject.repository.SubjectAssignmentRepository;
 import com.school.studentmanagement.subject.repository.SubjectRepository;
@@ -39,12 +40,13 @@ public class ClassroomStatsService {
 
     private final StudentGradeRepository studentGradeRepository;
     private final StudentSemesterStatRepository semesterStatRepository;
+    private final AnalyticsGradeQueryRepository analyticsGradeQueryRepository;
     private final ExamRepository examRepository;
     private final SubjectRepository subjectRepository;
     private final SubjectAssignmentRepository subjectAssignmentRepository;
     private final StudentAffiliationRepository studentAffiliationRepository;
     private final ClassRoomRepository classRoomRepository;
-    private final ParentStudentMappingRepository parentMappingRepository;
+    private final ParentChildLinkValidator parentChildLinkValidator;
     private final AcademicCalendarUtil academicCalendarUtil;
 
     // ─── 학급 통계 ───────────────────────────────────────────────────────────
@@ -59,25 +61,18 @@ public class ClassroomStatsService {
         Subject subject = subjectRepository.findById(subjectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "과목 정보를 찾을 수 없습니다"));
 
-        List<StudentAffiliation> affiliations = studentAffiliationRepository.findAllByClassroomId(classroomId);
-        List<Long> studentIds = affiliations.stream().map(a -> a.getStudent().getId()).toList();
+        // 평균/표준편차/분포는 analytics 사전 집계에서 조회(운영 OLTP 직접 집계 이관, P3).
+        // 데이터가 아직 적재되지 않았으면(요약 행 없음) 0건/빈 분포로 응답(기존 n=0 동작과 동일).
+        AnalyticsGradeQueryRepository.ClassroomDistRow dist = analyticsGradeQueryRepository
+                .findClassroomExamSubjectStats(classroomId, examId, subjectId)
+                .orElse(null);
 
-        List<Integer> rawScores = studentIds.isEmpty()
-                ? List.of()
-                : studentGradeRepository.findRawScoresByExamIdAndSubjectIdAndStudentIds(examId, subjectId, studentIds);
-
-        int n = rawScores.size();
-        double avg = 0.0, stddev = 0.0;
-        Integer max = null, min = null;
-        if (n > 0) {
-            avg = rawScores.stream().mapToInt(Integer::intValue).average().orElse(0.0);
-            double mean = avg;
-            stddev = Math.sqrt(rawScores.stream()
-                    .mapToDouble(s -> (s - mean) * (s - mean))
-                    .average().orElse(0.0));
-            max = rawScores.stream().mapToInt(Integer::intValue).max().orElse(0);
-            min = rawScores.stream().mapToInt(Integer::intValue).min().orElse(0);
-        }
+        int n = dist != null ? dist.studentCount() : 0;
+        double avg = dist != null && dist.avgScore() != null ? dist.avgScore() : 0.0;
+        double stddev = dist != null && dist.stddevScore() != null ? dist.stddevScore() : 0.0;
+        Integer max = dist != null ? dist.maxRawScore() : null;
+        Integer min = dist != null ? dist.minRawScore() : null;
+        int[] bins = dist != null ? dist.bins() : new int[10];
 
         return ClassroomStatsResponse.builder()
                 .classroomId(classroomId)
@@ -92,7 +87,7 @@ public class ClassroomStatsService {
                 .standardDeviation(stddev)
                 .maxValue(max)
                 .minValue(min)
-                .distribution(buildDistribution(rawScores, exam.getMaxScore()))
+                .distribution(buildDistribution(bins))
                 .build();
     }
 
@@ -135,7 +130,7 @@ public class ClassroomStatsService {
 
     public StudentRankingResponse getChildRanking(Long parentId, Long studentId,
                                                   Integer academicYear, Integer semester) {
-        validateParentChild(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return getMyRanking(studentId, academicYear, semester);
     }
 
@@ -254,7 +249,7 @@ public class ClassroomStatsService {
 
     public StudentGradeWideRankingResponse getChildGradeWideRanking(Long parentId, Long studentId,
                                                                     Integer academicYear, Integer semester) {
-        validateParentChild(parentId, studentId);
+        parentChildLinkValidator.validateLinked(parentId, studentId);
         return getMyGradeWideRanking(studentId, academicYear, semester);
     }
 
@@ -295,14 +290,8 @@ public class ClassroomStatsService {
         return result;
     }
 
-    private List<ClassroomStatsResponse.ScoreBin> buildDistribution(List<Integer> rawScores, int maxScore) {
-        int[] bins = new int[10];
-        for (Integer s : rawScores) {
-            double normalized = s * 100.0 / maxScore;
-            int idx = (int) Math.min(normalized / 10.0, 9);
-            bins[idx]++;
-        }
-
+    // bin0..bin9(정규화 점수 10단위, 마지막 90-100)는 analytics ETL 에서 사전 계산된다.
+    private List<ClassroomStatsResponse.ScoreBin> buildDistribution(int[] bins) {
         List<ClassroomStatsResponse.ScoreBin> result = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             String range = (i < 9) ? (i * 10) + "-" + (i * 10 + 9) : "90-100";
@@ -328,12 +317,6 @@ public class ClassroomStatsService {
                 .isPresent();
         if (!hasAssignment) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED, "해당 학급 과목의 통계 조회 권한이 없습니다");
-        }
-    }
-
-    private void validateParentChild(Long parentId, Long studentId) {
-        if (!parentMappingRepository.existsByParentIdAndStudentId(parentId, studentId)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED, "연결된 자녀가 아닙니다");
         }
     }
 }

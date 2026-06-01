@@ -2,20 +2,28 @@ package com.school.studentmanagement.consultation.service;
 
 import com.school.studentmanagement.consultation.dto.ConsultationCreateRequest;
 import com.school.studentmanagement.consultation.dto.ConsultationResponse;
+import com.school.studentmanagement.consultation.dto.ConsultationUpdateRequest;
 import com.school.studentmanagement.consultation.entity.Consultation;
 import com.school.studentmanagement.consultation.repository.ConsultationRepository;
 import com.school.studentmanagement.global.enums.ConsultationVisibility;
 import com.school.studentmanagement.global.enums.UserRole;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.exception.ErrorCode;
+import com.school.studentmanagement.global.validation.TeacherStudentRelationValidator;
 import com.school.studentmanagement.student.entity.Student;
 import com.school.studentmanagement.student.repository.StudentRepository;
 import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.teacher.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -26,14 +34,18 @@ public class ConsultationService {
     private final ConsultationRepository consultationRepository;
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
+    private final TeacherStudentRelationValidator teacherStudentRelationValidator;
 
-    // 상담 내역 생성 (교사 전용) — visibility 미지정 시 RESTRICTED
+    // 상담 내역 생성 (교사 전용) — visibility 미지정 시 RESTRICTED.
+    // 작성 권한은 담임 또는 과목 담당 교사로 제한 (2026-05-28 변경, 피드백 F3와 동일 정책).
     @Transactional
     public ConsultationResponse createConsultation(Long teacherId, ConsultationCreateRequest request) {
         Student student = studentRepository.findById(request.getStudentId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_NOT_FOUND));
         Teacher teacher = teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.TEACHER_NOT_FOUND));
+
+        teacherStudentRelationValidator.validateCanWriteFor(teacherId, student.getId());
 
         Consultation consultation = Consultation.create(
                 teacher, student, request.getConsultationDate(),
@@ -56,6 +68,46 @@ public class ConsultationService {
                 .filter(c -> canView(c, requesterId, isAdmin, isHomeroom))
                 .map(ConsultationResponse::from)
                 .toList();
+    }
+
+    // 교사 간 상담 검색 — 필터(학생/작성교사/공개범위/키워드/기간) + 페이지네이션.
+    // 권한 노출 범위(canView 4분기)는 Repository JPQL이 DB에서 직접 처리한다.
+    public Page<ConsultationResponse> searchConsultations(Long requesterId,
+                                                          UserRole role,
+                                                          Long studentId,
+                                                          Long teacherId,
+                                                          ConsultationVisibility visibility,
+                                                          String keyword,
+                                                          LocalDate from,
+                                                          LocalDate to,
+                                                          Pageable pageable) {
+        boolean isAdmin = role == UserRole.ADMIN;
+        LocalDateTime fromDateTime = (from != null) ? from.atStartOfDay() : null;
+        LocalDateTime toDateTime = (to != null) ? to.atTime(LocalTime.MAX) : null;
+        // 빈 문자열/공백 키워드는 무조건 매칭되는 LIKE '%%' 가 되어 의도와 어긋나므로 null로 정규화
+        String trimmedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+
+        return consultationRepository.searchConsultations(
+                isAdmin, requesterId, studentId, teacherId, visibility,
+                trimmedKeyword, fromDateTime, toDateTime, pageable
+        ).map(ConsultationResponse::from);
+    }
+
+    // 상담 내역 수정 (작성자 본인만) — 본문·일시·계획·공개범위 변경.
+    @Transactional
+    public ConsultationResponse updateConsultation(Long consultationId, Long requesterId,
+                                                   ConsultationUpdateRequest request) {
+        Consultation consultation = consultationRepository.findById(consultationId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CONSULTATION_NOT_FOUND));
+
+        if (!consultation.isAuthor(requesterId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED, "작성자 본인만 수정할 수 있습니다");
+        }
+
+        consultation.update(
+                request.getConsultationDate(), request.getContent(),
+                request.getNextPlan(), request.getVisibility());
+        return ConsultationResponse.from(consultation);
     }
 
     // 공개 범위 토글 (작성자 본인 또는 관리자만) — RESTRICTED <-> ALL_TEACHERS

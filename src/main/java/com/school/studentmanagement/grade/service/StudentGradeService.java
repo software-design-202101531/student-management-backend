@@ -47,6 +47,7 @@ public class StudentGradeService {
     private final GradeHistoryRepository gradeHistoryRepository;
     private final UserRepository userRepository;
     private final SemesterStatRecalculator semesterStatRecalculator;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final SemesterClosureService semesterClosureService;
 
     // ─── 성적 입력 (과목 담당 교사) ──────────────────────────────────────────
@@ -116,6 +117,12 @@ public class StudentGradeService {
         studentIds.forEach(studentId ->
                 semesterStatRecalculator.refresh(affiliationByStudentId.get(studentId).getStudent(),
                         exam.getAcademicYear(), exam.getSemester()));
+
+        // 분석 증분 적재 트리거 — 커밋 이후 RabbitMQ로 중계됨(AnalyticsEventRelay)
+        requestedStudentIds.forEach(sid -> eventPublisher.publishEvent(
+                new com.school.studentmanagement.analytics.event.AnalyticsSourceEvent(
+                        com.school.studentmanagement.analytics.event.AnalyticsRabbitConfig.RK_GRADE_SAVED,
+                        new com.school.studentmanagement.analytics.event.AnalyticsEventMessage(sid, subjectId))));
     }
 
     // ─── 성적 수정 (과목 담당 교사) ──────────────────────────────────────────
@@ -152,6 +159,13 @@ public class StudentGradeService {
                     teacherId, lookupUserName(teacherId), request.getReason());
             semesterStatRecalculator.refresh(grade.getStudent(),
                     grade.getExam().getAcademicYear(), grade.getExam().getSemester());
+
+            // 분석 증분 적재 트리거 — 수정도 saveGrades 와 동일하게 발행(레이더/추세/분포가 근실시간 갱신).
+            eventPublisher.publishEvent(
+                    new com.school.studentmanagement.analytics.event.AnalyticsSourceEvent(
+                            com.school.studentmanagement.analytics.event.AnalyticsRabbitConfig.RK_GRADE_SAVED,
+                            new com.school.studentmanagement.analytics.event.AnalyticsEventMessage(
+                                    grade.getStudent().getId(), subjectId)));
         }
     }
 

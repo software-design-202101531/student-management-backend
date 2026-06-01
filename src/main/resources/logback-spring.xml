@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Spring Boot 기본 logback 설정을 가져온 뒤, 콘솔 패턴의 %m(메시지) 부분만 정규식 체이닝으로 마스킹한다.
+  현재 코드에서 토큰/비밀번호를 직접 로깅하는 지점은 없지만(spring 프레임워크 레벨 로그가 유일),
+  향후 사고 방지 보험으로 다음 패턴을 일괄 치환한다:
+
+    - "Bearer <token>"            → "Bearer ***"
+    - "Authorization: <value>"    → "Authorization: ***"
+    - "Cookie: <value>"           → "Cookie: ***"
+    - "Set-Cookie: <value>"       → "Set-Cookie: ***"
+    - JSON 의 "password": "..."  → "password": "***"
+    - JSON 의 "token": "..."     → "token": "***"
+    - JSON 의 "secret": "..."    → "secret": "***"
+
+  주의: Logback 패턴 안에서 정규식 문자(\, $)는 두 번 이스케이프 필요.
+        '\\s' = 공백, '\\S' = 비공백, '$1' = 캡처그룹.
+-->
+<configuration>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Spring Boot 의 기본 콘솔 패턴(CONSOLE_LOG_PATTERN)에서 %m → %replace(...) 체이닝으로 교체.
+         XML 속성 안의 `"`는 &quot; 로 이스케이프 (JSON 매칭 정규식). -->
+    <property name="MASKED_MSG"
+              value="%replace(%replace(%replace(%replace(%replace(%replace(%replace(%m){'(Bearer\s+)[A-Za-z0-9._\-]+', '$1***'}){'(?i)(authorization\s*[:=]\s*)\S+', '$1***'}){'(?i)(set-cookie\s*[:=]\s*)\S+', '$1***'}){'(?i)(cookie\s*[:=]\s*)\S+', '$1***'}){'(?i)(&quot;password&quot;\s*:\s*&quot;)[^&quot;]*', '$1***'}){'(?i)(&quot;token&quot;\s*:\s*&quot;)[^&quot;]*', '$1***'}){'(?i)(&quot;secret&quot;\s*:\s*&quot;)[^&quot;]*', '$1***'}"/>
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="${CONSOLE_LOG_PATTERN:-%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd'T'HH:mm:ss.SSSXXX}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}){highlight} %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} ${MASKED_MSG}%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

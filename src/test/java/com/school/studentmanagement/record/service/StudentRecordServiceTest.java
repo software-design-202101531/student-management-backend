@@ -160,7 +160,7 @@ class StudentRecordServiceTest {
     class SaveBehaviorRecordTest {
 
         @Test
-        @DisplayName("성공: 기존 행특이 없으면 신규 생성 후 save 호출")
+        @DisplayName("성공: 기존 행특이 없으면 ON CONFLICT 안전 삽입(insertBehaviorIfAbsent) 호출")
         void saveBehaviorRecord_Success_CreatesNew() {
             // Given
             BehaviorRecordRequest request = buildRequest("모범적인 학생입니다");
@@ -169,13 +169,38 @@ class StudentRecordServiceTest {
             given(studentRecordRepository.findByStudentIdAndRecordCategoryAndAcademicYearAndSemester(
                     STUDENT_ID, RecordCategory.BEHAVIOR_OPINION, 2026, 1))
                     .willReturn(Optional.empty());
+            given(studentRecordRepository.insertBehaviorIfAbsent(STUDENT_ID, TEACHER_ID, 2026, 1, "모범적인 학생입니다"))
+                    .willReturn(1); // 삽입 성공(경합 없음)
+
+            // When
+            studentRecordService.saveBehaviorRecord(STUDENT_ID, TEACHER_ID, request);
+
+            // Then — 네이티브 안전 삽입 사용, JPA save 미사용
+            verify(studentRecordRepository).insertBehaviorIfAbsent(STUDENT_ID, TEACHER_ID, 2026, 1, "모범적인 학생입니다");
+            verify(studentRecordRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("동시 최초 작성 경합: insert가 0행이면 재조회해 update로 수렴(예외 없음)")
+        void saveBehaviorRecord_Conflict_ConvergesToUpdate() {
+            // Given - 첫 조회 빈 결과 → insert 경합 패배(0) → 재조회 시 승자 행 반환
+            StudentRecord winner = StudentRecord.createBehaviorOpinion(student, teacher, 2026, 1, "먼저 저장된 내용");
+            BehaviorRecordRequest request = buildRequest("내 내용");
+            stubValidAuthority();
+            given(academicCalendarUtil.isModifiable(2026)).willReturn(true);
+            given(studentRecordRepository.findByStudentIdAndRecordCategoryAndAcademicYearAndSemester(
+                    STUDENT_ID, RecordCategory.BEHAVIOR_OPINION, 2026, 1))
+                    .willReturn(Optional.empty(), Optional.of(winner));
+            given(studentRecordRepository.insertBehaviorIfAbsent(STUDENT_ID, TEACHER_ID, 2026, 1, "내 내용"))
+                    .willReturn(0); // 경합 패배
             given(teacherRepository.getReferenceById(TEACHER_ID)).willReturn(teacher);
 
             // When
             studentRecordService.saveBehaviorRecord(STUDENT_ID, TEACHER_ID, request);
 
-            // Then
-            verify(studentRecordRepository).save(any(StudentRecord.class));
+            // Then - 재조회한 승자 행에 update 수렴
+            assertThat(winner.getContent()).isEqualTo("내 내용");
+            verify(studentRecordRepository, never()).save(any());
         }
 
         @Test

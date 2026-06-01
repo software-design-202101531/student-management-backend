@@ -1,6 +1,7 @@
 package com.school.studentmanagement.grade.dto;
 
 import com.school.studentmanagement.global.enums.ExamAttendanceStatus;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +20,7 @@ public class GradeSaveRequest {
     private Long examId;
 
     @NotEmpty
+    @Valid
     private List<StudentScoreDto> scores;
 
     @Builder

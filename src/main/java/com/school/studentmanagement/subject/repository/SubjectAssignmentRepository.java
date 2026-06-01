@@ -42,18 +42,18 @@ public interface SubjectAssignmentRepository extends JpaRepository<SubjectAssign
             @Param("semester") Integer semester
     );
 
-    // 선택한 반의 학샐 명단을 가져오기
-    @Query("SELECT CASE WHEN COUNT (sa) > 0 THEN true ELSE false END " +
+    // 특정 교사가 해당 학년도/학기에 그 반을 담당하는지 존재 여부
+    @Query("SELECT CASE WHEN COUNT(sa) > 0 THEN true ELSE false END " +
             "FROM SubjectAssignment sa " +
             "WHERE sa.teacher.id = :teacherId " +
             "AND sa.classroom.id = :classroomId " +
             "AND sa.academicYear = :year " +
             "AND sa.semester = :semester ")
-    boolean existsByTeacherIdAndClassroomIdAndYear(
+    boolean existsByTeacherIdAndClassroomIdAndAcademicYearAndSemester(
             @Param("teacherId") Long teacherId,
             @Param("classroomId") Long classroomId,
             @Param("year") Integer year,
-            @Param("semester")  Integer semester
+            @Param("semester") Integer semester
     );
 
     // 학기 마감용: 그 학기의 모든 SubjectAssignment (학급, 과목 조합)

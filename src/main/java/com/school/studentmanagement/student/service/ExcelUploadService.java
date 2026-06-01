@@ -5,7 +5,6 @@ import com.school.studentmanagement.classroom.entity.StudentAffiliation;
 import com.school.studentmanagement.global.enums.Gender;
 import com.school.studentmanagement.global.enums.RelationType;
 import com.school.studentmanagement.global.enums.UserRole;
-import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.global.exception.BusinessException;
 import com.school.studentmanagement.global.exception.ErrorCode;
 import com.school.studentmanagement.parent.entity.ParentInvitation;
@@ -34,7 +33,11 @@ public class ExcelUploadService {
 
     @Transactional(rollbackFor = Exception.class)
     public void uploadStudentExcel(MultipartFile file) {
-        if (file == null || file.isEmpty() || !file.getOriginalFilename().endsWith(".xlsx")) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_FILE);
+        }
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".xlsx")) {
             throw new BusinessException(ErrorCode.INVALID_FILE);
         }
 
@@ -93,12 +96,7 @@ public class ExcelUploadService {
                     .orElseThrow(() -> new BusinessException(ErrorCode.CLASSROOM_NOT_FOUND,
                             dto.getGrade() + "학년 " + dto.getClassNum() + "반이 시스템에 등록되지 않았습니다"));
 
-            User user = User.builder()
-                    .name(dto.getStudentName())
-                    .role(UserRole.STUDENT)
-                    .status(UserStatus.PENDING)
-                    .gender(dto.getGender())
-                    .build();
+            User user = User.createPending(dto.getStudentName(), dto.getGender(), UserRole.STUDENT);
             entityManager.persist(user);
 
             Student student = Student.builder()
