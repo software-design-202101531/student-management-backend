@@ -35,13 +35,13 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Compute image tags
         id: meta
         run: |
-          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${IMAGE_NAME}"
+          IMAGE="${{ secrets.DOCKER_USERNAME }}/${IMAGE_NAME}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
 
@@ -64,10 +64,10 @@ jobs:
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu          # EC2 기본 사용자(Ubuntu AMI 기준). Amazon Linux 면 ec2-user 로 변경
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
             set -euo pipefail
 
@@ -77,7 +77,7 @@ jobs:
             ENV_FILE="/student-management/spring/app.env"
 
             echo "==> Docker Hub 로그인"
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
             echo "==> 최신 이미지 pull: ${IMAGE}"
             docker pull "${IMAGE}"
