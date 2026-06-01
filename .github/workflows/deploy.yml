@@ -41,7 +41,7 @@ jobs:
       - name: Compute image tags
         id: meta
         run: |
-          IMAGE="${{ secrets.DOCKER_USERNAME }}/${IMAGE_NAME}"
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/${IMAGE_NAME}"
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
           echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
 
