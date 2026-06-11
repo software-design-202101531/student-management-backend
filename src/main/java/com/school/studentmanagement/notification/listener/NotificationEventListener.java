@@ -2,6 +2,8 @@ package com.school.studentmanagement.notification.listener;
 
 import com.school.studentmanagement.assignment.event.AssignmentCreatedEvent;
 import com.school.studentmanagement.assignment.event.AssignmentGradedEvent;
+import com.school.studentmanagement.consultation.event.ConsultationCreatedEvent;
+import com.school.studentmanagement.consultation.event.ConsultationUpdatedEvent;
 import com.school.studentmanagement.feedback.event.FeedbackPublishedEvent;
 import com.school.studentmanagement.grade.event.ExamPublishedEvent;
 import com.school.studentmanagement.notification.service.NotificationService;
@@ -45,5 +47,17 @@ public class NotificationEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAssignmentGraded(AssignmentGradedEvent event) {
         notificationService.createForAssignmentGraded(event.submissionId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onConsultationCreated(ConsultationCreatedEvent event) {
+        notificationService.createForConsultationCreated(event.consultationId());
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onConsultationUpdated(ConsultationUpdatedEvent event) {
+        notificationService.createForConsultationUpdated(event.consultationId());
     }
 }

@@ -94,6 +94,8 @@ public class SecurityConfig {
                         // 행특/과세특 작성·조회는 교사 전용 (담임·과목담당 세부 권한은 서비스에서 검증)
                         .requestMatchers("/api/students/*/records/**").hasRole("TEACHER")
                         .requestMatchers("/api/classrooms/*/subjects/*/students/*/records/**").hasRole("TEACHER")
+                        // 특정 학생 성적 검색은 교사 전용 (담임·과목담당 세부 권한은 서비스에서 검증)
+                        .requestMatchers(HttpMethod.GET, "/api/students/*/grades/search").hasRole("TEACHER")
                         // 성적: 시험 메타 등록/공개는 교사·관리자, 학기 마감/재개방은 관리자 전용,
                         //       그 외 성적 조회/입력은 교사 (담임·과목담당 세부 권한은 서비스에서 검증)
                         .requestMatchers("/api/grades/semesters/**").hasRole("ADMIN")

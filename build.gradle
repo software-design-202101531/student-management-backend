@@ -1,12 +1,53 @@
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '3.5.12'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "org.sonarqube" version "7.3.1.8318"
 }
+
 
 group = 'com.school'
 version = '0.0.1-SNAPSHOT'
 description = 'student-management'
+
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+    }
+    // 커버리지 측정 제외(sonar.exclusions 와 정렬): 순수 데이터 캐리어(DTO)·설정 와이어링·메인 클래스.
+    // 컨트롤러·엔티티는 일부러 포함한다(컨트롤러=실제 테스트 갭, 엔티티 비즈니스 로직은 측정 대상).
+    // Lombok 생성 메서드는 lombok.config(@Generated)로 이미 제외된다.
+    classDirectories.setFrom(
+            files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: [
+                        '**/dto/**',
+                        '**/config/**',
+                        '**/*Application*'
+                ])
+            })
+    )
+}
+
+
+sonar {
+    properties {
+        property "sonar.projectKey", "student-management-backend"
+        property "sonar.host.url", "http://localhost:9000"
+        property "sonar.token", System.getenv("SONAR_TOKEN") // 토큰은 보안상 환경변수로! (sonar.login은 deprecated)
+        property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/test/jacocoTestReport.xml"
+        // DTO, Config, 메인 실행 클래스 등 굳이 분석할 필요 없는 건 제외 (노이즈 제거)
+        property "sonar.exclusions", "**/dto/**, **/config/**, *Application.java"
+    }
+}
+
+test {
+    finalizedBy jacocoTestReport
+}
 
 java {
     toolchain {

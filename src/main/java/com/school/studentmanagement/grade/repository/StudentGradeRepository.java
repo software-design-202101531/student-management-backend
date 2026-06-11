@@ -122,6 +122,27 @@ public interface StudentGradeRepository extends JpaRepository<StudentGrade, Long
             @Param("semester") Integer semester
     );
 
+    // 성적 검색 — 한 학생의 개별 시험 성적을 필터(과목/학기 범위) 조건으로 조회.
+    //   - subjectId null  → 전 과목
+    //   - fromKey/toKey   → (academicYear*10 + semester) 비교 키, null이면 해당 방향 무한대 (학기 범위 open-ended)
+    //   - includeUnpublished=false → 발행 시험만(학생/학부모용), true → 미발행 포함(교사용)
+    @Query("SELECT sg FROM StudentGrade sg " +
+            "JOIN FETCH sg.subject sub " +
+            "JOIN FETCH sg.exam e " +
+            "WHERE sg.student.id = :studentId " +
+            "AND (:subjectId IS NULL OR sub.id = :subjectId) " +
+            "AND (:fromKey IS NULL OR (e.academicYear * 10 + e.semester) >= :fromKey) " +
+            "AND (:toKey IS NULL OR (e.academicYear * 10 + e.semester) <= :toKey) " +
+            "AND (:includeUnpublished = TRUE OR e.published = TRUE) " +
+            "ORDER BY e.academicYear DESC, e.semester DESC, e.examDate DESC, e.id DESC")
+    List<StudentGrade> searchByStudentAndFilters(
+            @Param("studentId") Long studentId,
+            @Param("subjectId") Long subjectId,
+            @Param("fromKey") Integer fromKey,
+            @Param("toKey") Integer toKey,
+            @Param("includeUnpublished") boolean includeUnpublished
+    );
+
     // 학기 마감용: 학기의 모든 (학생, 시험, 과목) 조합 식별자만
     @Query("SELECT sg.student.id AS studentId, " +
             "sg.exam.id AS examId, " +

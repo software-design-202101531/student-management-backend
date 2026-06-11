@@ -5,6 +5,7 @@ import com.school.studentmanagement.global.enums.UserRole;
 import com.school.studentmanagement.global.enums.UserStatus;
 import com.school.studentmanagement.global.security.JwtTokenProvider;
 import com.school.studentmanagement.student.entity.Student;
+import com.school.studentmanagement.support.IntegrationTestSupport;
 import com.school.studentmanagement.user.entity.User;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,15 +13,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.nio.charset.StandardCharsets;
 
@@ -35,22 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 실제 Postgres(Testcontainers) + 전체 Spring 컨텍스트(Security/JWT 필터/JPA/POI/PDF)를 거친다.
  * 클래스 레벨 @Transactional 로 테스트 데이터는 매 테스트 후 롤백된다(컨트롤러 트랜잭션이 같은 스레드 tx에 합류).
  */
-@SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Testcontainers
 @Transactional
-class ReportExportIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @DynamicPropertySource
-    static void datasource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
+class ReportExportIntegrationTest extends IntegrationTestSupport {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private EntityManager em;

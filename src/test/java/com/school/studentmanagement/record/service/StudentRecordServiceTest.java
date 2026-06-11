@@ -190,7 +190,7 @@ class StudentRecordServiceTest {
             given(academicCalendarUtil.isModifiable(2026)).willReturn(true);
             given(studentRecordRepository.findByStudentIdAndRecordCategoryAndAcademicYearAndSemester(
                     STUDENT_ID, RecordCategory.BEHAVIOR_OPINION, 2026, 1))
-                    .willReturn(Optional.empty(), Optional.of(winner));
+                    .willReturn(Optional.empty()).willReturn(Optional.of(winner));
             given(studentRecordRepository.insertBehaviorIfAbsent(STUDENT_ID, TEACHER_ID, 2026, 1, "내 내용"))
                     .willReturn(0); // 경합 패배
             given(teacherRepository.getReferenceById(TEACHER_ID)).willReturn(teacher);

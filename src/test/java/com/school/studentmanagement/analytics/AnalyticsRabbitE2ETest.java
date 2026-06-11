@@ -3,18 +3,16 @@ package com.school.studentmanagement.analytics;
 import com.school.studentmanagement.analytics.event.AnalyticsEventMessage;
 import com.school.studentmanagement.analytics.event.AnalyticsRabbitConfig;
 import com.school.studentmanagement.analytics.event.AnalyticsSourceEvent;
+import com.school.studentmanagement.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -32,22 +30,15 @@ import static org.assertj.core.api.Assertions.within;
  * analytics 요약 upsert 까지 끝에서 끝까지 자동 검증한다.
  * (단위/통합 테스트가 우회하던 토폴로지·바인딩·JSON 직렬화 회귀를 CI가 잡도록 한다.)
  */
-@SpringBootTest
-@ActiveProfiles("test")
 @Testcontainers
-class AnalyticsRabbitE2ETest {
+class AnalyticsRabbitE2ETest extends IntegrationTestSupport {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
+    // Postgres 는 베이스(IntegrationTestSupport)의 싱글톤을 공유하고, 이 테스트는 RabbitMQ 만 추가로 띄운다.
     @Container
     static RabbitMQContainer rabbit = new RabbitMQContainer("rabbitmq:3-management");
 
     @DynamicPropertySource
-    static void props(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
+    static void rabbitProps(DynamicPropertyRegistry registry) {
         registry.add("spring.rabbitmq.host", rabbit::getHost);
         registry.add("spring.rabbitmq.port", rabbit::getAmqpPort);
         registry.add("spring.rabbitmq.username", rabbit::getAdminUsername);

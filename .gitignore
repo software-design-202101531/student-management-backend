@@ -50,6 +50,13 @@ out/
 ### minio data ###
 /minio
 
+### rabbitmq data ###
+/rabbitmq
+
+### SonarQube (스캐너 산출물 — 서버 데이터는 docker named volume라 repo엔 안 쌓임) ###
+.scannerwork/
+.sonar/
+
 ### macOS ###
 .DS_Store
 

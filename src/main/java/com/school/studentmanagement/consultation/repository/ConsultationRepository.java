@@ -10,8 +10,17 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface ConsultationRepository extends JpaRepository<Consultation, Long> {
+
+    // 알림 생성용 단건 조회 — 작성 교사·학생·담임 교사를 함께 로딩(별도 @Async 트랜잭션에서 지연로딩 회피).
+    @Query("SELECT c FROM Consultation c " +
+            "JOIN FETCH c.teacher t JOIN FETCH t.user " +
+            "JOIN FETCH c.student s JOIN FETCH s.user " +
+            "LEFT JOIN FETCH s.homeroomTeacher " +
+            "WHERE c.id = :id")
+    Optional<Consultation> findByIdWithParticipants(@Param("id") Long id);
 
     // 특정 학생의 전체 상담 내역 (작성 교사·이름까지 함께 로딩, 상담 일시 내림차순)
     // 권한 필터링은 서비스 계층에서 수행

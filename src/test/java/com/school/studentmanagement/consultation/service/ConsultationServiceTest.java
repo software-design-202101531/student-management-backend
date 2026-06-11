@@ -51,6 +51,7 @@ class ConsultationServiceTest {
     @Mock private StudentRepository studentRepository;
     @Mock private TeacherRepository teacherRepository;
     @Mock private com.school.studentmanagement.global.validation.TeacherStudentRelationValidator teacherStudentRelationValidator;
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private static final Long TEACHER_ID = 1L;
     private static final Long STUDENT_ID = 10L;
@@ -182,6 +183,8 @@ class ConsultationServiceTest {
             assertThat(res.getContent()).isEqualTo("수정된 내용");
             assertThat(res.getNextPlan()).isEqualTo("수정된 계획");
             assertThat(res.getVisibility()).isEqualTo(ConsultationVisibility.ALL_TEACHERS);
+            verify(eventPublisher).publishEvent(any(
+                    com.school.studentmanagement.consultation.event.ConsultationUpdatedEvent.class));
         }
 
         @Test

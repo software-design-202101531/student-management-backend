@@ -4,6 +4,8 @@ import com.school.studentmanagement.consultation.dto.ConsultationCreateRequest;
 import com.school.studentmanagement.consultation.dto.ConsultationResponse;
 import com.school.studentmanagement.consultation.dto.ConsultationUpdateRequest;
 import com.school.studentmanagement.consultation.entity.Consultation;
+import com.school.studentmanagement.consultation.event.ConsultationCreatedEvent;
+import com.school.studentmanagement.consultation.event.ConsultationUpdatedEvent;
 import com.school.studentmanagement.consultation.repository.ConsultationRepository;
 import com.school.studentmanagement.global.enums.ConsultationVisibility;
 import com.school.studentmanagement.global.enums.UserRole;
@@ -15,6 +17,7 @@ import com.school.studentmanagement.student.repository.StudentRepository;
 import com.school.studentmanagement.teacher.entity.Teacher;
 import com.school.studentmanagement.teacher.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,6 +38,7 @@ public class ConsultationService {
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
     private final TeacherStudentRelationValidator teacherStudentRelationValidator;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 상담 내역 생성 (교사 전용) — visibility 미지정 시 RESTRICTED.
     // 작성 권한은 담임 또는 과목 담당 교사로 제한 (2026-05-28 변경, 피드백 F3와 동일 정책).
@@ -51,6 +55,9 @@ public class ConsultationService {
                 teacher, student, request.getConsultationDate(),
                 request.getContent(), request.getNextPlan(), request.getVisibility());
         consultationRepository.save(consultation);
+
+        // 커밋 이후 비동기로 담임 교사 알림 발행 (AFTER_COMMIT)
+        eventPublisher.publishEvent(new ConsultationCreatedEvent(consultation.getId()));
 
         return ConsultationResponse.from(consultation);
     }
@@ -107,6 +114,10 @@ public class ConsultationService {
         consultation.update(
                 request.getConsultationDate(), request.getContent(),
                 request.getNextPlan(), request.getVisibility());
+
+        // 커밋 이후 비동기로 담임 교사 알림 발행 (AFTER_COMMIT)
+        eventPublisher.publishEvent(new ConsultationUpdatedEvent(consultation.getId()));
+
         return ConsultationResponse.from(consultation);
     }
 

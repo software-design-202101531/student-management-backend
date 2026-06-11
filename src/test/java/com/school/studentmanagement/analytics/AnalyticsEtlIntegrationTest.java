@@ -5,17 +5,11 @@ import com.school.studentmanagement.analytics.dto.SubjectAnalyticsOverviewRespon
 import com.school.studentmanagement.analytics.etl.AnalyticsEtlService;
 import com.school.studentmanagement.analytics.repository.AnalyticsGradeQueryRepository;
 import com.school.studentmanagement.analytics.service.AnalyticsDashboardService;
+import com.school.studentmanagement.support.IntegrationTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
@@ -28,20 +22,7 @@ import static org.assertj.core.api.Assertions.within;
  * - 대시보드 조회가 analytics만 읽어 결과를 반환함을 검증한다.
  * (FK는 test 커넥션의 session_replication_role='replica'로 우회 — 부모행 없이 직접 삽입)
  */
-@SpringBootTest
-@ActiveProfiles("test")
-@Testcontainers
-class AnalyticsEtlIntegrationTest {
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
-    @DynamicPropertySource
-    static void datasource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
+class AnalyticsEtlIntegrationTest extends IntegrationTestSupport {
 
     @Autowired private JdbcTemplate jdbc;
     @Autowired private AnalyticsEtlService etlService;

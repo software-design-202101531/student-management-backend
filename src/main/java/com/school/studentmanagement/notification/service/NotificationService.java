@@ -5,6 +5,8 @@ import com.school.studentmanagement.assignment.entity.Submission;
 import com.school.studentmanagement.assignment.repository.AssignmentRepository;
 import com.school.studentmanagement.assignment.repository.SubmissionRepository;
 import com.school.studentmanagement.classroom.repository.StudentAffiliationRepository;
+import com.school.studentmanagement.consultation.entity.Consultation;
+import com.school.studentmanagement.consultation.repository.ConsultationRepository;
 import com.school.studentmanagement.feedback.entity.Feedback;
 import com.school.studentmanagement.feedback.repository.FeedbackRepository;
 import com.school.studentmanagement.global.enums.NotificationStatus;
@@ -18,6 +20,7 @@ import com.school.studentmanagement.notification.dto.NotificationResponse;
 import com.school.studentmanagement.notification.entity.Notification;
 import com.school.studentmanagement.notification.repository.NotificationRepository;
 import com.school.studentmanagement.parent.repository.ParentStudentMappingRepository;
+import com.school.studentmanagement.teacher.entity.Teacher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -42,6 +45,7 @@ public class NotificationService {
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
     private final StudentAffiliationRepository studentAffiliationRepository;
+    private final ConsultationRepository consultationRepository;
     private final NotificationUnreadCountCache unreadCountCache;
 
     // ===== 조회 (폴링) =====
@@ -159,6 +163,45 @@ public class NotificationService {
 
         saveAll(resolveRecipients(List.of(studentId)),
                 NotificationType.ASSIGNMENT_GRADED, title, content, linkUrl, submission.getAssignment().getId());
+    }
+
+    // 상담 등록 → 대상 학생의 담임 교사에게 알림
+    @Transactional
+    public void createForConsultationCreated(Long consultationId) {
+        notifyHomeroomTeacher(consultationId, NotificationType.CONSULTATION_CREATED,
+                "새 상담 내역이 등록되었어요", "등록");
+    }
+
+    // 상담 수정 → 대상 학생의 담임 교사에게 알림
+    @Transactional
+    public void createForConsultationUpdated(Long consultationId) {
+        notifyHomeroomTeacher(consultationId, NotificationType.CONSULTATION_UPDATED,
+                "상담 내역이 수정되었어요", "수정");
+    }
+
+    // 상담 대상 학생의 담임 교사에게만 알림. 담임 미배정이거나 작성자 본인이 담임이면 생략.
+    // 담임은 공개 범위(visibility)와 무관하게 해당 상담을 열람할 수 있어 알림-권한이 정합한다.
+    private void notifyHomeroomTeacher(Long consultationId, NotificationType type,
+                                       String title, String actionVerb) {
+        Consultation consultation = consultationRepository.findByIdWithParticipants(consultationId).orElse(null);
+        if (consultation == null) {
+            return; // 변경 직후 삭제 등 경합 방어
+        }
+        Teacher homeroom = consultation.getStudent().getHomeroomTeacher();
+        if (homeroom == null) {
+            return; // 담임 미배정 → 수신자 없음
+        }
+        Long homeroomUserId = homeroom.getId(); // @MapsId: teacher.id == userId
+        if (homeroomUserId.equals(consultation.getTeacher().getId())) {
+            return; // 작성자 본인이 담임이면 알림 불필요
+        }
+
+        String teacherName = consultation.getTeacher().getUser().getName();
+        String studentName = consultation.getStudent().getUser().getName();
+        String content = String.format("%s 선생님이 %s 학생의 상담을 %s했습니다.", teacherName, studentName, actionVerb);
+        String linkUrl = "/consultations/search?studentId=" + consultation.getStudent().getId();
+
+        saveAll(Set.of(homeroomUserId), type, title, content, linkUrl, consultationId);
     }
 
     // 학생 본인(userId == studentId) + 연결된 학부모(userId == parentId)의 합집합
