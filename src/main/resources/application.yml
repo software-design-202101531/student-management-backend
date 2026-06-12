@@ -9,6 +9,10 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       connection-init-sql: "SET session_replication_role = 'replica'"  # 개발 시 한정 (FK 체크 우회)
+      # nullable 파라미터를 (:p IS NULL OR ...) 형태로 쓰는 동적 검색에서 PostgreSQL이
+      # null 바인드 파라미터의 타입을 추론하지 못하는 문제(42P18) 회피 — 파라미터를 리터럴로 인라인.
+      data-source-properties:
+        preferQueryMode: simple
 
   # Flyway — analytics(OLAP) 스키마/테이블만 마이그레이션으로 관리.
   # 운영 public 테이블은 ddl-auto가 관리하므로, 기존 비어있지 않은 스키마에서도 동작하도록 baseline 허용(버전 0).
