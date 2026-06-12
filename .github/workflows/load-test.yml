@@ -101,7 +101,9 @@ jobs:
         env:
           BASE_URL: http://localhost:8080
           TEST_TYPE: ${{ github.event.inputs.test_type || 'smoke' }}
+          K6_REPORT_DIR: k6-report   # handleSummary() 가 시나리오별 HTML/JSON 을 여기에 저장
         run: |
+          mkdir -p "$K6_REPORT_DIR"
           SC="${{ github.event.inputs.scenario }}"
           if [ -z "$SC" ]; then
             # PR 게이트 기본: 인증 + 성적 쓰기(계약/락) + 조회. s3 은 대용량 시드 필요라 제외.
@@ -111,10 +113,20 @@ jobs:
           fail=0
           for s in $SC; do
             echo "::group::k6 $s"
-            k6 run "load-test/scenarios/${s}.js" || fail=1
+            K6_REPORT="$s" k6 run "load-test/scenarios/${s}.js" || fail=1
             echo "::endgroup::"
           done
           exit $fail
+
+      # 결과 HTML/JSON 리포트를 아티팩트로 업로드 — 실패해도(always) 올려서 원인 분석 가능.
+      # Actions run 페이지 하단 Artifacts 에서 k6-report 를 내려받아 브라우저로 HTML 확인.
+      - name: Upload k6 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-report
+          path: k6-report/
+          if-no-files-found: warn
 
       - name: App log (on failure)
         if: failure()

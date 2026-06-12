@@ -77,3 +77,6 @@ export function teardown(data) {
   const res = http.get(url, params);
   check(res, { 'final read 200': (r) => r.status === 200 });
 }
+
+// 종료 시 HTML/JSON 리포트 생성 (CI 아티팩트)
+export { handleSummary } from '../lib/summary.js';

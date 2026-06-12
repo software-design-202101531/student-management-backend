@@ -62,3 +62,7 @@ out/
 
 ### docs (로컬 보고서 — 깃 추적 제외) ###
 /docs
+
+### k6 load-test reports ###
+load-test/k6-report/
+k6-report/

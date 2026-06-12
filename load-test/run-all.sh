@@ -7,6 +7,8 @@ set -uo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 export BASE_URL="${BASE_URL:-http://localhost:8080}"
 export TEST_TYPE="${TEST_TYPE:-smoke}"
+# 시나리오별 HTML/JSON 리포트 저장 위치 (handleSummary)
+export K6_REPORT_DIR="${K6_REPORT_DIR:-$DIR/k6-report}"
 
 ALL=(s0_login s1_grade_write_concurrency s2_read_spike s3_search_filter s4_notification s5_olap_dashboard)
 if [ "$#" -gt 0 ]; then
@@ -15,14 +17,17 @@ else
   TARGETS=("${ALL[@]}")
 fi
 
-echo "▶ BASE_URL=$BASE_URL  TEST_TYPE=$TEST_TYPE"
+mkdir -p "$K6_REPORT_DIR"
+echo "▶ BASE_URL=$BASE_URL  TEST_TYPE=$TEST_TYPE  REPORT_DIR=$K6_REPORT_DIR"
 fail=0
 for s in "${TARGETS[@]}"; do
   echo ""
   echo "=================== $s ==================="
-  if ! k6 run "$DIR/scenarios/${s}.js"; then
+  if ! K6_REPORT="$s" k6 run "$DIR/scenarios/${s}.js"; then
     echo "✗ $s 임계값 미달 또는 오류"
     fail=1
   fi
 done
+echo ""
+echo "▶ 리포트: $K6_REPORT_DIR/*.html"
 exit "$fail"
