@@ -56,6 +56,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # 새 백엔드 이미지가 발행되면 프론트 저장소의 E2E 워크플로를 원격 트리거한다.
+  # (E2E 스펙은 프론트가 소유·실행 — 여기서는 "이미지 나왔으니 검증해줘" 신호만 보낸다)
+  # 필요 시크릿: FRONTEND_DISPATCH_TOKEN = 프론트 레포 Actions(write) 권한의 PAT.
+  trigger-frontend-e2e:
+    name: Trigger frontend E2E
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch backend-image-updated to frontend
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.FRONTEND_DISPATCH_TOKEN }}
+          repository: software-design-202101531/student-management-web
+          event-type: backend-image-updated
+          # 불변 태그(sha)로 정확히 그 빌드를 검증한다
+          client-payload: |
+            { "image": "${{ needs.build-and-push.outputs.image }}:${{ github.sha }}" }
+
   deploy:
     name: SSH deploy on server
     needs: build-and-push
@@ -94,7 +112,7 @@ jobs:
               --network "${NETWORK}" \
               --env-file "${ENV_FILE}" \
               -e SPRING_PROFILES_ACTIVE=prod \
-              -p 8080:8080 \
+              -p 127.0.0.1:8080:8080 \
               --restart unless-stopped \
               "${IMAGE}"
 
