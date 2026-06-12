@@ -55,8 +55,8 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
             "AND (:from IS NULL OR c.consultationDate >= :from) " +
             "AND (:to IS NULL OR c.consultationDate <= :to) " +
             "AND (:keyword IS NULL " +
-            "     OR LOWER(CAST(c.content AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "     OR LOWER(CAST(c.nextPlan AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')))",
+            "     OR LOWER(CAST(c.content AS string)) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
+            "     OR LOWER(CAST(c.nextPlan AS string)) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))",
             countQuery = "SELECT COUNT(c) FROM Consultation c " +
                     "WHERE (:isAdmin = TRUE " +
                     "       OR c.visibility = com.school.studentmanagement.global.enums.ConsultationVisibility.ALL_TEACHERS " +
@@ -68,8 +68,8 @@ public interface ConsultationRepository extends JpaRepository<Consultation, Long
                     "AND (:from IS NULL OR c.consultationDate >= :from) " +
                     "AND (:to IS NULL OR c.consultationDate <= :to) " +
                     "AND (:keyword IS NULL " +
-                    "     OR LOWER(CAST(c.content AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-                    "     OR LOWER(CAST(c.nextPlan AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+                    "     OR LOWER(CAST(c.content AS string)) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
+                    "     OR LOWER(CAST(c.nextPlan AS string)) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
     Page<Consultation> searchConsultations(@Param("isAdmin") boolean isAdmin,
                                            @Param("requesterId") Long requesterId,
                                            @Param("studentId") Long studentId,
