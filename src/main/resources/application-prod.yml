@@ -34,3 +34,11 @@ app:
   # 시연용 1회성 토글 — 데모가 끝나면 false 로 되돌리는 것을 권장(멱등이라 데이터가 있으면 어차피 건너뜀).
   demo:
     enabled: ${DEMO_SEED_ENABLED:false}
+
+# 운영은 actuator 노출을 health 로 제한(메트릭/프로메테우스 비노출 → 정보 누출 방지).
+# 운영에서 모니터링이 필요하면 별도 보안 네트워크/별도 management 포트로 prometheus 를 열 것.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

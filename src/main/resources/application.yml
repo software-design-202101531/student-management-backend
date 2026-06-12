@@ -83,6 +83,22 @@ minio:
   bucket: school-files                     # 사용할 기본 버킷명
   presigned-url-ttl: 1h                    # 조회용 presigned URL 유효 시간
 
+# Actuator/모니터링 — 부하 테스트 시 서버 측 지표(HikariCP 풀, 스레드, GC, HTTP 지연)를 노출한다.
+# 비-운영(로컬/개발/CI)은 prometheus 까지 노출, 운영(prod)은 health 만 노출(application-prod.yml override).
+# 보안: prod 는 노출 목록 자체가 health 뿐이라 /actuator/prometheus 는 404 → 정보 누출 없음.
+#       (SecurityConfig 가 /actuator/** 를 permitAll 해도, 노출되지 않은 엔드포인트는 접근 불가)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health,info,prometheus,metrics}
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: student-management
+
 # 로그 레벨 — 기본은 운영 안전값(INFO). 개발 환경에서는 application-dev.yml 에서 DEBUG 등으로 덮어쓴다.
 # 민감정보 마스킹(Bearer/Authorization/password 등)은 logback-spring.xml 의 패턴이 일괄 처리.
 logging:

@@ -1,0 +1,127 @@
+name: Load Test (k6 smoke)
+
+# 별도 EC2 없이 GitHub Actions 러너 안에서 자급자족으로 동작한다.
+#   인프라(postgres/redis/rabbitmq/minio)는 docker compose 로 띄우고,
+#   앱은 gradle 로 빌드해 기본 프로필(데모 시드 ON, ddl-auto=create)로 기동한 뒤,
+#   같은 러너에서 k6 스모크를 돌려 스크립트·API 계약·기본 응답성을 회귀 검증한다.
+#
+# 트리거:
+#   - pull_request: 머지 전 회귀 검증
+#   - push(main): 배포(deploy.yml)와 함께 도는 사후 스모크. 단, deploy.yml 과는
+#                 서로 의존(needs)이 없는 독립 잡이라 이 테스트가 실패해도 배포는 막지 않는다(비차단/정보용).
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    paths:
+      - "src/**"
+      - "load-test/**"
+      - "build.gradle"
+      - ".github/workflows/load-test.yml"
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: "부하 패턴 (smoke|load|stress|spike|soak)"
+        required: false
+        default: "smoke"
+      scenario:
+        description: "실행할 시나리오 (공백구분, 비우면 핵심 3종)"
+        required: false
+        default: ""
+
+jobs:
+  k6-gate:
+    name: k6 smoke gate (self-contained)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      # CI 전용 throwaway .env — docker compose 변수 치환과 Spring 의 optional:file:.env 임포트가 공유한다.
+      # DB 는 매 실행 ddl-auto=create 로 새로 만들어지므로 암호화 키는 무작위로 생성해도 무방하다(영속 데이터 없음).
+      - name: Write CI .env
+        run: |
+          cat > .env <<EOF
+          DB_USER=school_user
+          DB_PASSWORD=school_password
+          DB_ROOT_PASSWORD=rootpassword
+          JWT_SECRET=$(openssl rand -base64 64 | tr -d '\n')
+          JWT_ACCESS_EXPIRATION=1800000
+          JWT_REFRESH_EXPIRATION=1209600000
+          RABBITMQ_USER=school_user
+          RABBITMQ_PASSWORD=school_password
+          MINIO_ROOT_USER=school_user
+          MINIO_ROOT_PASSWORD=school_password
+          APP_ENCRYPTION_PASSWORD=$(openssl rand -base64 64 | tr -d '\n')
+          APP_ENCRYPTION_SALT=$(openssl rand -hex 32)
+          EOF
+          echo "CI .env 생성 완료"
+
+      - name: Start infra (postgres/redis/rabbitmq/minio)
+        run: docker compose up -d postgres redis rabbitmq minio
+
+      - name: Build app jar
+        run: ./gradlew bootJar -x test --no-daemon
+
+      # 기본 프로필(프로필 미지정) = 데모 시드 ON. 백그라운드 기동 후 로그인 200 으로 준비 완료 판정.
+      - name: Start app & wait for readiness
+        run: |
+          APP_JAR=$(ls build/libs/*.jar | grep -v -- '-plain.jar' | head -n1)
+          echo "실행 jar: $APP_JAR"
+          nohup java -jar "$APP_JAR" > app.log 2>&1 &
+          echo $! > app.pid
+          echo "앱 기동 대기(최대 180s)..."
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' \
+              -X POST http://localhost:8080/api/auth/login \
+              -H 'Content-Type: application/json' \
+              -d '{"loginId":"admin","password":"admin1234!"}' || true)
+            if [ "$code" = "200" ]; then
+              echo "✓ 앱 준비 완료 (로그인 200, 시드 적재됨)"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "✗ 앱이 준비되지 않음 — 로그 마지막 120줄:"
+          tail -n 120 app.log
+          exit 1
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 smoke gate
+        env:
+          BASE_URL: http://localhost:8080
+          TEST_TYPE: ${{ github.event.inputs.test_type || 'smoke' }}
+        run: |
+          SC="${{ github.event.inputs.scenario }}"
+          if [ -z "$SC" ]; then
+            # PR 게이트 기본: 인증 + 성적 쓰기(계약/락) + 조회. s3 은 대용량 시드 필요라 제외.
+            SC="s0_login s1_grade_write_concurrency s2_read_spike"
+          fi
+          echo "▶ TEST_TYPE=$TEST_TYPE  SCENARIOS=$SC"
+          fail=0
+          for s in $SC; do
+            echo "::group::k6 $s"
+            k6 run "load-test/scenarios/${s}.js" || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail
+
+      - name: App log (on failure)
+        if: failure()
+        run: tail -n 200 app.log || true
+
+      - name: Teardown
+        if: always()
+        run: |
+          [ -f app.pid ] && kill "$(cat app.pid)" 2>/dev/null || true
+          docker compose down -v || true

@@ -67,6 +67,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // 배포 후 생존 확인용 헬스체크 — 인증 없이 접근 허용
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+                        // Actuator(부하 테스트 모니터링) — 인증 없이 스크레이프 허용.
+                        // 운영(prod)은 노출 목록이 health 뿐이라 prometheus/metrics 는 404 → 안전.
+                        .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/api/user/**", "/api/parents/**", "/api/auth/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // 알림은 인증된 모든 역할(학생/학부모/교사) 본인 것만 — 수신자 필터는 서비스에서 userId 기준
