@@ -138,7 +138,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        // 로컬 개발(5173) + 운영 프론트(Vercel). allowCredentials(true) 라 "*" 불가 → 명시적 origin.
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "https://student-management-delta-six.vercel.app"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

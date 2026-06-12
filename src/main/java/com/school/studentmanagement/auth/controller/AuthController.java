@@ -64,12 +64,15 @@ public class AuthController {
     }
 
     private ResponseCookie refreshCookie(String value, Duration maxAge) {
+        // 교차 사이트(프론트=vercel.app, 백엔드=attune.asia)에서 쿠키가 전송되려면 SameSite=None 필요.
+        // 단 None 은 Secure 가 전제라, HTTPS(운영)에서만 None, 로컬(HTTP)은 Strict 로 둔다.
+        String sameSite = cookieSecure ? "None" : "Strict";
         return ResponseCookie.from(REFRESH_COOKIE, value)
                 .maxAge(maxAge)
                 .path("/")
                 .httpOnly(true)
                 .secure(cookieSecure)
-                .sameSite("Strict")
+                .sameSite(sameSite)
                 .build();
     }
 }
